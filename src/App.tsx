@@ -67,6 +67,13 @@ function TypeBadge({ type }: { type: string }) {
 }
 
 const formatDate = (value: string) => new Intl.DateTimeFormat("en-PH", { month: "short", day: "2-digit", year: "numeric" }).format(new Date(value));
+const stockMovementFilename = () => {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `WDS-Stock-Movement-${year}-${month}-${day}`;
+};
 
 export default function App() {
   const [page, setPage] = useState<Page>("dashboard");
@@ -330,6 +337,7 @@ function Reports({ items, transactions, notify }: { items: InventoryItem[]; tran
   const reportEntries = dateRangeIncomplete ? [] : filtered;
   const hasFilters = dateFrom || dateTo || itemId || category || type;
   const exportExcel = () => {
+    const filename = stockMovementFilename();
     const escapeCell = (value: string | number) => `"${String(value).replaceAll('"', '""')}"`;
     const rows = reportEntries.map(transaction => [
       formatDate(transaction.date), transaction.reference, transaction.itemName, transaction.type,
@@ -343,14 +351,28 @@ function Reports({ items, transactions, notify }: { items: InventoryItem[]; tran
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `WDS-Stock-Movement-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `${filename}.csv`;
     link.click();
     URL.revokeObjectURL(url);
     notify(`Excel-compatible report downloaded with ${reportEntries.length} matching transaction${reportEntries.length === 1 ? "" : "s"}.`);
   };
   const printPdf = () => {
-    notify("Print dialog opened. Select “Save as PDF” as the destination.");
-    window.setTimeout(() => window.print(), 150);
+    const filename = stockMovementFilename();
+    const previousTitle = document.title;
+    let titleRestored = false;
+    const restoreTitle = () => {
+      if (titleRestored) return;
+      titleRestored = true;
+      document.title = previousTitle;
+      window.removeEventListener("afterprint", restoreTitle);
+    };
+    document.title = filename;
+    window.addEventListener("afterprint", restoreTitle);
+    notify(`Print dialog opened. Select "Save as PDF" as the destination. Suggested filename: ${filename}.`);
+    window.setTimeout(() => {
+      window.print();
+      window.setTimeout(restoreTitle, 1000);
+    }, 150);
   };
   return <><PageHeader title="Reports" description="Review inventory health and stock movement data." actions={<><Button variant="secondary" disabled={dateRangeIncomplete} onClick={exportExcel}>Export Excel</Button><Button variant="secondary" disabled={dateRangeIncomplete} onClick={printPdf}>Save / Print PDF</Button><Button disabled={dateRangeIncomplete} onClick={() => notify(`Mock report generated with ${reportEntries.length} matching transaction${reportEntries.length === 1 ? "" : "s"}.`)}>Generate Report</Button></>}/>
     <div className="report-kpis"><div><span>Total Items</span><strong>{items.length}</strong><small>Inventory records</small></div><div><span>Total Stock</span><strong>{total.toLocaleString()}</strong><small>Units on hand</small></div><div><span>Low Stock Items</span><strong>{low}</strong><small>Require attention</small></div><div><span>Out of Stock</span><strong>{out}</strong><small>Require restocking</small></div></div>
