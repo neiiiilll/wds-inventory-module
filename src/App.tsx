@@ -290,10 +290,25 @@ function Transactions({ transactions, items, onOpen, onNew }: { transactions: In
 }
 
 function StockTrail({ transactions }: { transactions: InventoryTransaction[] }) {
+  const [searchDraft, setSearchDraft] = useState("");
+  const [search, setSearch] = useState("");
   const sortedTransactions = [...transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const filteredTransactions = sortedTransactions.filter(tx => {
+    const query = search.trim().toLowerCase();
+    if (!query) return true;
+    const haystack = `${tx.itemName} ${tx.type} ${tx.reference} ${tx.performedBy} ${tx.remarks}`.toLowerCase();
+    return haystack.includes(query);
+  });
   return <><PageHeader title="Stock Trail" description="View the complete history of stock changes." actions={<span className="readonly"><Icon name="shield"/> Read Only</span>}/>
     <div className="immutable-note"><Icon name="shield"/><div><strong>Immutable audit record</strong><span>Stock trail records are permanent and cannot be edited or deleted.</span></div></div>
-    <section className="panel trail-panel"><div className="trail-list">{sortedTransactions.map(tx => <div className="trail-item" key={tx.id}><div className={`trail-dot ${tx.quantity > 0 ? "increase" : "decrease"}`}><Icon name={tx.quantity > 0 ? "in" : "out"} size={16}/></div><div className="trail-main"><div><strong>{tx.itemName}</strong><TypeBadge type={tx.type}/></div><p>{tx.remarks}</p><div className="trail-meta"><span><Icon name="clock" size={14}/>{formatDate(tx.date)} · {new Date(tx.date).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}</span><span>Ref: <b>{tx.reference}</b></span><span>By {tx.performedBy}</span></div></div><div className="trail-stock"><strong className={tx.quantity > 0 ? "positive" : "negative"}>{tx.quantity > 0 ? "+" : ""}{tx.quantity}</strong><span>{tx.previous} → <b>{tx.next}</b></span></div></div>)}</div></section></>;
+    <section className="panel inventory-panel">
+      <div className="filters"><div className="search-field"><Icon name="search"/><Input value={searchDraft} onChange={e => setSearchDraft(e.target.value)} placeholder="Search by item, reference, person..." onKeyDown={e => { if (e.key === "Enter") setSearch(searchDraft); }}/></div>
+        <Button variant="secondary" icon="search" onClick={() => setSearch(searchDraft)}>Search</Button>
+        {search && <Button variant="ghost" onClick={() => { setSearch(""); setSearchDraft(""); }}>Clear search</Button>}
+      </div>
+      <div className="table-caption"><strong>{search ? `${filteredTransactions.length} of ${transactions.length} records` : `${transactions.length} trail records`}</strong><span>{search ? `Matching "${search}"` : "All stock movement history"}</span></div>
+      <div className="trail-panel">{filteredTransactions.length ? <div className="trail-list">{filteredTransactions.map(tx => <div className="trail-item" key={tx.id}><div className={`trail-dot ${tx.quantity > 0 ? "increase" : "decrease"}`}><Icon name={tx.quantity > 0 ? "in" : "out"} size={16}/></div><div className="trail-main"><div><strong>{tx.itemName}</strong><TypeBadge type={tx.type}/></div><p>{tx.remarks}</p><div className="trail-meta"><span><Icon name="clock" size={14}/>{formatDate(tx.date)} · {new Date(tx.date).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}</span><span>Ref: <b>{tx.reference}</b></span><span>By {tx.performedBy}</span></div></div><div className="trail-stock"><strong className={tx.quantity > 0 ? "positive" : "negative"}>{tx.quantity > 0 ? "+" : ""}{tx.quantity}</strong><span>{tx.previous} → <b>{tx.next}</b></span></div></div>)}</div> : <Empty title="No stock trail records match your search." action={<Button variant="secondary" onClick={() => { setSearch(""); setSearchDraft(""); }}>Clear search</Button>}/>}</div>
+    </section></>;
 }
 
 function Reports({ items, transactions, notify }: { items: InventoryItem[]; transactions: InventoryTransaction[]; notify: (s:string)=>void }) {
