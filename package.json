@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "test": "node scripts/report-period.test.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "format": "oxfmt"

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { isInReportRange, localDate, reportRange, type ReportPeriod } from "./services/report-period";
 import {
   categories,
   initialItems,
@@ -21,6 +22,7 @@ const nav: { id: Page; label: string; icon: string }[] = [
   { id: "trail", label: "Stock Trail", icon: "trail" },
   { id: "reports", label: "Reports", icon: "chart" },
 ];
+const reportPeriods: ReportPeriod[] = ["Weekly", "Monthly", "Yearly"];
 
 const iconPaths: Record<string, React.ReactNode> = {
   grid: <><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></>,
@@ -67,13 +69,8 @@ function TypeBadge({ type }: { type: string }) {
 }
 
 const formatDate = (value: string) => new Intl.DateTimeFormat("en-PH", { month: "short", day: "2-digit", year: "numeric" }).format(new Date(value));
-const stockMovementFilename = () => {
-  const date = new Date();
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `WDS-Stock-Movement-${year}-${month}-${day}`;
-};
+const stockMovementFilename = (period: ReportPeriod, start: string, end: string) =>
+  `WDS-${period}-Stock-Movement-${start}-to-${end}`;
 
 export default function App() {
   const [page, setPage] = useState<Page>("dashboard");
@@ -320,30 +317,35 @@ function StockTrail({ transactions }: { transactions: InventoryTransaction[] }) 
 
 function Reports({ items, transactions, notify }: { items: InventoryItem[]; transactions: InventoryTransaction[]; notify: (s:string)=>void }) {
   const total = items.reduce((s,i)=>s+i.quantity,0); const low = items.filter(i=>statusFor(i)==="Low Stock").length; const out = items.filter(i=>statusFor(i)==="Out of Stock").length;
-  const [dateFrom, setDateFrom] = useState(""); const [dateTo, setDateTo] = useState("");
+  const [reportPeriod, setReportPeriod] = useState<ReportPeriod>("Monthly");
+  const [reportDate, setReportDate] = useState(() => localDate(new Date()));
   const [itemId, setItemId] = useState(""); const [category, setCategory] = useState(""); const [type, setType] = useState("");
-  const dateRangeIncomplete = Boolean(dateFrom) !== Boolean(dateTo);
-  const rangeStart = dateFrom && dateTo ? (dateFrom < dateTo ? dateFrom : dateTo) : "";
-  const rangeEnd = dateFrom && dateTo ? (dateFrom > dateTo ? dateFrom : dateTo) : "";
+  const range = reportRange(reportPeriod, reportDate);
+  const dateRangeIncomplete = !range;
+  const rangeStart = range?.start || "";
+  const rangeEnd = range?.end || "";
+  const clearFilters = () => { setReportDate(localDate(new Date())); setItemId(""); setCategory(""); setType(""); };
   const filtered = transactions.filter(transaction => {
-    const transactionDate = transaction.date.slice(0, 10);
     const item = items.find(candidate => candidate.id === transaction.itemId);
-    return (!rangeStart || transactionDate >= rangeStart)
-      && (!rangeEnd || transactionDate <= rangeEnd)
+    return isInReportRange(transaction.date, range)
       && (!itemId || transaction.itemId === itemId)
       && (!category || item?.category === category)
       && (!type || transaction.type === type);
   }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   const reportEntries = dateRangeIncomplete ? [] : filtered;
-  const hasFilters = dateFrom || dateTo || itemId || category || type;
+  const hasFilters = reportDate !== localDate(new Date()) || itemId || category || type;
   const exportExcel = () => {
-    const filename = stockMovementFilename();
+    if (!range) return;
+    const filename = stockMovementFilename(reportPeriod, rangeStart, rangeEnd);
     const escapeCell = (value: string | number) => `"${String(value).replaceAll('"', '""')}"`;
     const rows = reportEntries.map(transaction => [
       formatDate(transaction.date), transaction.reference, transaction.itemName, transaction.type,
       transaction.quantity, transaction.previous, transaction.next, transaction.performedBy, transaction.remarks,
     ]);
     const csv = [
+      [`${reportPeriod} Stock Movement Report`],
+      ["Starting date", rangeStart, "Ending date", rangeEnd],
+      [],
       ["Date", "Reference No.", "Item", "Transaction Type", "Quantity", "Previous Stock", "New Stock", "Performed By", "Remarks"],
       ...rows,
     ].map(row => row.map(escapeCell).join(",")).join("\n");
@@ -354,10 +356,11 @@ function Reports({ items, transactions, notify }: { items: InventoryItem[]; tran
     link.download = `${filename}.csv`;
     link.click();
     URL.revokeObjectURL(url);
-    notify(`Excel-compatible report downloaded with ${reportEntries.length} matching transaction${reportEntries.length === 1 ? "" : "s"}.`);
+    notify(`${reportPeriod} Excel-compatible report downloaded with ${reportEntries.length} matching transaction${reportEntries.length === 1 ? "" : "s"}.`);
   };
   const printPdf = () => {
-    const filename = stockMovementFilename();
+    if (!range) return;
+    const filename = stockMovementFilename(reportPeriod, rangeStart, rangeEnd);
     const previousTitle = document.title;
     let titleRestored = false;
     const restoreTitle = () => {
@@ -374,9 +377,23 @@ function Reports({ items, transactions, notify }: { items: InventoryItem[]; tran
       window.setTimeout(restoreTitle, 1000);
     }, 150);
   };
-  return <><PageHeader title="Reports" description="Review inventory health and stock movement data." actions={<><Button variant="secondary" disabled={dateRangeIncomplete} onClick={exportExcel}>Export Excel</Button><Button variant="secondary" disabled={dateRangeIncomplete} onClick={printPdf}>Save / Print PDF</Button><Button disabled={dateRangeIncomplete} onClick={() => notify(`Mock report generated with ${reportEntries.length} matching transaction${reportEntries.length === 1 ? "" : "s"}.`)}>Generate Report</Button></>}/>
+  return <><PageHeader title="Reports" description="Review inventory health and stock movement data." actions={<><Button variant="secondary" disabled={dateRangeIncomplete} onClick={exportExcel}>Export Excel</Button><Button variant="secondary" disabled={dateRangeIncomplete} onClick={printPdf}>Save / Print PDF</Button><Button disabled={dateRangeIncomplete} onClick={() => notify(`${reportPeriod} report generated for ${rangeStart} to ${rangeEnd} with ${reportEntries.length} matching transaction${reportEntries.length === 1 ? "" : "s"}.`)}>Generate Report</Button></>}/>
     <div className="report-kpis"><div><span>Total Items</span><strong>{items.length}</strong><small>Inventory records</small></div><div><span>Total Stock</span><strong>{total.toLocaleString()}</strong><small>Units on hand</small></div><div><span>Low Stock Items</span><strong>{low}</strong><small>Require attention</small></div><div><span>Out of Stock</span><strong>{out}</strong><small>Require restocking</small></div></div>
-    <section className="panel inventory-panel print-report"><PanelHead title="Stock Movement Report" subtitle="Filter and review inventory movements for a selected period."/><div className="filters report-filters no-print"><Field label="Starting date"><Input type="date" value={dateFrom} onChange={event => setDateFrom(event.target.value)}/></Field><Field label="Ending date"><Input type="date" value={dateTo} onChange={event => setDateTo(event.target.value)}/></Field><Field label="Item"><Select value={itemId} onChange={event => setItemId(event.target.value)}><option value="">All items</option>{items.map(i=><option value={i.id} key={i.id}>{i.name}</option>)}</Select></Field><Field label="Category"><Select value={category} onChange={event => setCategory(event.target.value)}><option value="">All categories</option>{categories.map(c=><option key={c}>{c}</option>)}</Select></Field><Field label="Transaction Type"><Select value={type} onChange={event => setType(event.target.value)}><option value="">All types</option>{["Stock In","Stock Out","Return","Adjustment","Damaged","Lost"].map(transactionType => <option key={transactionType}>{transactionType}</option>)}</Select></Field>{hasFilters && <Button variant="ghost" onClick={() => { setDateFrom(""); setDateTo(""); setItemId(""); setCategory(""); setType(""); }}>Clear filters</Button>}</div><div className="table-caption"><strong>{dateRangeIncomplete ? "Complete the date range" : `${reportEntries.length} report entries`}</strong><span>{dateRangeIncomplete ? "Select both the starting and ending dates to display results" : hasFilters ? `Filtered period: ${rangeStart || "Beginning"} to ${rangeEnd || "Present"}` : "All stock movements"}</span></div>{dateRangeIncomplete ? <Empty title="Select both dates to view report entries."/> : reportEntries.length ? <TransactionTable transactions={reportEntries}/> : <Empty title="No report entries match the selected filters." action={<Button variant="secondary" onClick={() => { setDateFrom(""); setDateTo(""); setItemId(""); setCategory(""); setType(""); }}>Clear filters</Button>}/>}</section></>;
+    <section className="panel inventory-panel print-report">
+      <PanelHead title={`${reportPeriod} Stock Movement Report`} subtitle={range ? `${rangeStart} to ${rangeEnd}` : "No report date selected"}/>
+      <div className="filters report-filters no-print">
+        <Field label="Report Period"><Select value={reportPeriod} onChange={event => setReportPeriod(event.target.value as ReportPeriod)}>{reportPeriods.map(period => <option key={period}>{period}</option>)}</Select></Field>
+        <Field label="Report date"><Input type="date" value={reportDate} onChange={event => setReportDate(event.target.value)}/></Field>
+        <Field label="Starting date"><Input type="date" value={rangeStart} readOnly/></Field>
+        <Field label="Ending date"><Input type="date" value={rangeEnd} readOnly/></Field>
+        <Field label="Item"><Select value={itemId} onChange={event => setItemId(event.target.value)}><option value="">All items</option>{items.map(i=><option value={i.id} key={i.id}>{i.name}</option>)}</Select></Field>
+        <Field label="Category"><Select value={category} onChange={event => setCategory(event.target.value)}><option value="">All categories</option>{categories.map(c=><option key={c}>{c}</option>)}</Select></Field>
+        <Field label="Transaction Type"><Select value={type} onChange={event => setType(event.target.value)}><option value="">All types</option>{["Stock In","Stock Out","Return","Adjustment","Damaged","Lost"].map(transactionType => <option key={transactionType}>{transactionType}</option>)}</Select></Field>
+        {hasFilters && <Button variant="ghost" onClick={clearFilters}>Clear filters</Button>}
+      </div>
+      <div className="table-caption"><strong>{dateRangeIncomplete ? "No report date selected" : `${reportEntries.length} report entries`}</strong><span>{range ? `${reportPeriod}: ${rangeStart} to ${rangeEnd}` : ""}</span></div>
+      {dateRangeIncomplete ? <Empty title="No report date selected."/> : reportEntries.length ? <TransactionTable transactions={reportEntries}/> : <Empty title="No report entries match the selected filters." action={<Button variant="secondary" onClick={clearFilters}>Clear filters</Button>}/>}
+    </section></>;
 }
 
 function ModalShell({ title, subtitle, onClose, wide, children }: { title: string; subtitle?: string; onClose: () => void; wide?: boolean; children: React.ReactNode }) {
