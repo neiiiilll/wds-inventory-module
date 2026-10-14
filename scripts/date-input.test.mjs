@@ -1,0 +1,32 @@
+import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
+import ts from "typescript";
+import {createElement} from "react";
+import {renderToStaticMarkup} from "react-dom/server";
+import {pathToFileURL} from "node:url";
+import {createRequire} from "node:module";
+const source=readFileSync(new URL("../src/services/date-input.ts",import.meta.url),"utf8");
+const js=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ESNext}}).outputText;
+const {displayDate,parseDisplayDate}=await import(`data:text/javascript;base64,${Buffer.from(js).toString("base64")}`);
+assert.equal(displayDate("2026-10-14"),"10/14/2026");
+assert.equal(displayDate(""),"");
+assert.equal(parseDisplayDate("10/14/2026"),"2026-10-14");
+assert.equal(parseDisplayDate("02/29/2024"),"2024-02-29");
+for(const value of ["02/29/2026","04/31/2026","13/01/2026","00/12/2026","10/00/2026","10/14/0000","10-14-26","2026-10-14","10-"])assert.equal(parseDisplayDate(value),null,value);
+assert.equal(parseDisplayDate(""),"");
+const require=createRequire(import.meta.url);
+const helperUrl=`data:text/javascript;base64,${Buffer.from(js).toString("base64")}`;
+let component=ts.transpileModule(readFileSync(new URL("../src/components/DateInput.tsx",import.meta.url),"utf8"),{compilerOptions:{module:ts.ModuleKind.ESNext,jsx:ts.JsxEmit.ReactJSX}}).outputText;
+component=component.replaceAll('"react"',JSON.stringify(pathToFileURL(require.resolve("react")).href)).replaceAll('"react/jsx-runtime"',JSON.stringify(pathToFileURL(require.resolve("react/jsx-runtime")).href)).replaceAll('"../services/date-input"',JSON.stringify(helperUrl));
+const {default:DateInput}=await import(`data:text/javascript;base64,${Buffer.from(component).toString("base64")}`);
+const editable=renderToStaticMarkup(createElement(DateInput,{value:"2026-10-14",min:"2026-10-01",max:"2026-10-31",onChange:()=>{}}));
+assert.match(editable,/value="10\/14\/2026"/);
+assert.match(editable,/aria-label="Open calendar"/);
+assert.match(editable,/type="date"/);
+assert.match(editable,/min="2026-10-01"/);
+assert.match(editable,/max="2026-10-31"/);
+for(const props of [{readOnly:true},{disabled:true}]){
+ const markup=renderToStaticMarkup(createElement(DateInput,{value:"2026-10-14",...props}));
+ assert.doesNotMatch(markup,/aria-label="Open calendar"/);
+}
+console.log("Date input checks passed: MM/DD/YYYY display, ISO storage, leap years and invalid dates.");

@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "apps-workspace-b61a9"
+  },
+  "targets": {
+    "apps-workspace-b61a9": {
+      "hosting": {
+        "app": [
+          "app-invb61a9"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}
