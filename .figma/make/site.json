@@ -1,4 +1,5 @@
 {
+  "title": "Inventory Management",
   "description": "Manage water distribution inventory with an intuitive dashboard for tracking stock, transactions, and reports, designed for WDS personnel efficiency.",
   "robots": {
     "index": false

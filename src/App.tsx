@@ -39,6 +39,7 @@ import {
   type ReportPeriod,
 } from "./services/report-period"
 import { firebaseAuth, isFirebaseConfigured } from "./services/firebase"
+import { dashboardGreeting, userInitials } from "./services/user-display"
 
 import {
   categories,
@@ -317,6 +318,7 @@ const stockMovementFilename = (
 
 function InventoryApp({ session }: { session: User | null }) {
   const currentPersonnel = session?.displayName || session?.email || "Juan Dela Cruz";
+  const currentInitials = userInitials(currentPersonnel)
   const [page, setPage] = useState<Page>("dashboard")
 
   const [sidebar, setSidebar] = useState(false)
@@ -496,7 +498,7 @@ function InventoryApp({ session }: { session: User | null }) {
             <span>Settings</span>
           </button>
           <div className="side-user">
-            <div className="avatar">JD</div>
+            <div className="avatar">{currentInitials}</div>
             <div>
               <strong>{currentPersonnel}</strong>
               <span>{role}</span>
@@ -548,7 +550,7 @@ function InventoryApp({ session }: { session: User | null }) {
                 <option>Viewer</option>
               </select>
             </div>
-            <div className="avatar">JD</div>
+            <div className="avatar">{currentInitials}</div>
             <div className="top-user">
               <strong>{currentPersonnel}</strong>
               <span>{role}</span>
@@ -565,6 +567,7 @@ function InventoryApp({ session }: { session: User | null }) {
             <Dashboard
               items={items}
               transactions={transactions}
+              currentPersonnel={currentPersonnel}
               onNavigate={setPage}
               onView={showItem}
             />
@@ -796,11 +799,13 @@ function PageHeader({
 function Dashboard({
   items,
   transactions,
+  currentPersonnel,
   onNavigate,
   onView,
 }: {
   items: InventoryItem[]
   transactions: InventoryTransaction[]
+  currentPersonnel: string
   onNavigate: (p: Page) => void
   onView: (i: InventoryItem) => void
 }) {
@@ -854,7 +859,7 @@ function Dashboard({
     <>
       <PageHeader
         eyebrow="INVENTORY OVERVIEW"
-        title="Good morning, Juan"
+        title={dashboardGreeting(currentPersonnel)}
         description="Here’s what’s happening with WDS inventory today."
       />
       <div className="stat-grid">
