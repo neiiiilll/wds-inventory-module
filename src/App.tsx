@@ -7,6 +7,7 @@ import PurchaseDocuments from "./components/PurchaseDocuments";
 import DateInput from "./components/DateInput";
 import ClientDocument from "./components/ClientDocument";
 import LoginPage from "./components/LoginPage";
+import AccessGate from "./components/AccessGate";
 
 import MaterialCharges from "./components/MaterialCharges"
 
@@ -40,6 +41,7 @@ import {
 } from "./services/report-period"
 import { firebaseAuth, isFirebaseConfigured } from "./services/firebase"
 import { dashboardGreeting, userInitials } from "./services/user-display"
+import { canMutateWorkflow, type AppUser } from "./services/access-control"
 
 import {
   categories,
@@ -53,8 +55,6 @@ import {
 type Page = "dashboard" | "inventory" | "stock-in" | "stock-out" | "transactions" | "trail" | "reports" | "requests" | "purchase-requests" | "procurement" | "inspection" | "charges" | "reconciliation"
 
 type Modal = null | "add" | "edit" | "view" | "stock-in" | "stock-out" | "transaction" | "transaction-detail" | "confirm"
-
-type Role = "Administrator" | "Inventory Staff" | "Viewer"
 
 const nav: { id: Page; label: string; icon: string }[] = [
   { id: "dashboard", label: "Dashboard", icon: "grid" },
@@ -316,9 +316,10 @@ const stockMovementFilename = (
   end: string,
 ) => `WDS-${period}-Stock-Movement-${start}-to-${end}`
 
-function InventoryApp({ session }: { session: User | null }) {
-  const currentPersonnel = session?.displayName || session?.email || "Juan Dela Cruz";
+function InventoryApp({ session, appUser }: { session: User; appUser: AppUser }) {
+  const currentPersonnel = appUser.displayName || session.displayName || session.email || "User";
   const currentInitials = userInitials(currentPersonnel)
+  const role = appUser.role
   const [page, setPage] = useState<Page>("dashboard")
 
   const [sidebar, setSidebar] = useState(false)
@@ -326,8 +327,6 @@ function InventoryApp({ session }: { session: User | null }) {
   const [inspectionOrderId,setInspectionOrderId]=useState("");
   useEffect(()=>{if(page!=="inspection")setInspectionOrderId("");},[page]);
   useEffect(()=>{if(procurementSteps.some(step=>step.id===page))setProcurementOpen(true);},[page]);
-
-  const [role, setRole] = useState<Role>("Inventory Staff")
 
   const [loaded] = useState(() => {
     try {
@@ -386,7 +385,7 @@ function InventoryApp({ session }: { session: User | null }) {
 
   const title = nav.find((n) => n.id === page)?.label ?? "Inventory"
 
-  const canEdit = !hydrating && role !== "Viewer"
+  const canEdit = !hydrating && canMutateWorkflow(role)
 
   const notify = (text: string, kind: "success" | "error" = "success") => {
     setToast({ text, kind })
@@ -539,17 +538,6 @@ function InventoryApp({ session }: { session: User | null }) {
               <Icon name="bell" />
               <i />
             </button>
-            <div className="role-select">
-              <span>Demo role</span>
-              <select
-                value={role}
-                onChange={(e) => setRole(e.target.value as Role)}
-              >
-                <option>Administrator</option>
-                <option>Inventory Staff</option>
-                <option>Viewer</option>
-              </select>
-            </div>
             <div className="avatar">{currentInitials}</div>
             <div className="top-user">
               <strong>{currentPersonnel}</strong>
@@ -770,7 +758,7 @@ export default function App() {
     return <main className="login-page"><div className="login-loading">Checking your session…</div></main>
   }
   if (!session) return <LoginPage />
-  return <InventoryApp session={session} />
+  return <AccessGate session={session}>{(appUser) => <InventoryApp session={session} appUser={appUser} />}</AccessGate>
 }
 
 function PageHeader({

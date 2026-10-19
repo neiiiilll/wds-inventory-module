@@ -1,5 +1,6 @@
 import type { InventoryItem, InventoryTransaction } from "./inventory"
 import type { IARFormFields, RISFormFields, StockCardFormFields, DocumentItemSnapshot } from "./client-form-types";
+import type { AppRole } from "./access-control"
 
 export interface Attachment {
   name: string
@@ -638,7 +639,7 @@ export function materialCostForJob(state: WorkflowState, job: string) {
 export function applyWorkflowAction(
   state: WorkflowState,
   action: WorkflowAction,
-  role: string,
+  role: AppRole,
   currentPersonnel?: string,
 ): WorkflowState {
   if (role === "Viewer")

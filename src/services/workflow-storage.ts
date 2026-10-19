@@ -70,7 +70,7 @@ export function saveWorkflowState(state: WorkflowState) {
 }
 
 /**
- * Loads the current demo state immediately and hydrates it from Supabase when
+ * Loads the current local state and hydrates it from Supabase when
  * the migration has been applied. The UI remains usable if Supabase is not
  * configured or temporarily unavailable.
  */
