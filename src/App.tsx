@@ -28,9 +28,7 @@ import {
 } from "./services/workflow"
 
 import {
-  loadWorkflowState,
   loadWorkflowStateFromSupabase,
-  saveWorkflowState,
   saveWorkflowStateToSupabase,
 } from "./services/workflow-storage"
 
@@ -330,47 +328,38 @@ function InventoryApp({ session, appUser }: { session: User; appUser: AppUser })
   useEffect(()=>{if(page!=="inspection")setInspectionOrderId("");},[page]);
   useEffect(()=>{if(procurementSteps.some(step=>step.id===page))setProcurementOpen(true);},[page]);
 
-  const [loaded] = useState(() => {
-    try {
-      return { state: loadWorkflowState(), error: "" }
-    } catch (error) {
-      return {
-        state: migrateProcurementCompletion(migrateProcurement(createWorkflowState(initialItems, initialTransactions))),
-        error: (error as Error).message,
-      }
-    }
-  })
-
-  const [workflow, setWorkflow] = useState(loaded.state)
+  const [workflow, setWorkflow] = useState(() =>
+    migrateProcurementCompletion(migrateProcurement(createWorkflowState(initialItems, initialTransactions))),
+  )
 
   const workflowRef = useRef(workflow)
   const [hydrating, setHydrating] = useState(true)
+  const [storageWarning, setStorageWarning] = useState("")
+  const [reloadToken, setReloadToken] = useState(0)
 
   useEffect(() => {
     let active = true
     const revisionAtHydrationStart = workflowRef.current.revision
+    setHydrating(true)
+    setStorageWarning("")
     void loadWorkflowStateFromSupabase()
       .then((remote) => {
         if (!active || !remote || workflowRef.current.revision !== revisionAtHydrationStart) return
         workflowRef.current = remote
         setWorkflow(remote)
-        saveWorkflowState(remote)
-        setStorageWarning("")
       })
       .catch((error: Error) => {
-        if (active) setStorageWarning(`Supabase is unavailable. Using browser storage. ${error.message}`)
+        if (active) setStorageWarning(`Inventory data could not be loaded. ${error.message}`)
       })
       .finally(() => {
         if (active) setHydrating(false)
       })
     return () => { active = false }
-  }, [])
+  }, [reloadToken])
 
   const items = workflow.items
 
   const transactions = workflow.transactions
-
-  const [storageWarning, setStorageWarning] = useState(loaded.error)
 
   const [modal, setModal] = useState<Modal>(null)
 
@@ -421,35 +410,26 @@ function InventoryApp({ session, appUser }: { session: User; appUser: AppUser })
       return false
     }
     try {
-      const next = applyWorkflowAction(workflowRef.current, action, role, currentPersonnel)
+      const previous = workflowRef.current
+      const next = applyWorkflowAction(previous, action, role, currentPersonnel)
 
       workflowRef.current = next
 
       setWorkflow(next)
 
-      if (loaded.error) {
-        setStorageWarning(
-          `${loaded.error} Changes are available in this session only.`,
-        )
-        notify(
-          "Recorded in this session. Browser storage needs recovery.",
-          "error",
-        )
-      } else {
-        try {
-          saveWorkflowState(next)
-          void saveWorkflowStateToSupabase(next).catch((error: Error) => {
-            setStorageWarning(`Saved locally. Supabase sync failed: ${error.message}`)
-          })
-          setStorageWarning("")
+      setStorageWarning("")
+      void saveWorkflowStateToSupabase(next)
+        .then(() => {
           notify("Record saved. Linked stock and cost records are up to date.")
-        } catch {
-          setStorageWarning(
-            "Browser storage is full or unavailable. Changes are available in this session only; the last saved data is retained.",
-          )
-          notify("Recorded in this session; browser save failed.", "error")
-        }
-      }
+        })
+        .catch((error: Error) => {
+          if (workflowRef.current.revision === next.revision) {
+            workflowRef.current = previous
+            setWorkflow(previous)
+          }
+          setStorageWarning(`Inventory data could not be saved. ${error.message}`)
+          window.dispatchEvent(new Event("wds-access-invalidated"))
+        })
 
       return true
     } catch (error) {
@@ -465,6 +445,12 @@ function InventoryApp({ session, appUser }: { session: User; appUser: AppUser })
         setPage(next)
       } else setModal(next)
     })
+
+  if (hydrating)
+    return <main className="login-page"><div className="login-loading">Loading inventory access…</div></main>
+
+  if (storageWarning)
+    return <main className="login-page"><section className="login-card" aria-labelledby="inventory-load-error"><div className="login-brandmark">W</div><h1 id="inventory-load-error">Inventory data could not be loaded</h1><p className="login-subtitle">{storageWarning}</p><button className="google-login-button" type="button" onClick={() => setReloadToken((value) => value + 1)}>Retry</button><button className="btn btn-ghost" type="button" onClick={() => { if (firebaseAuth) void signOut(firebaseAuth) }}>Log out</button></section></main>
 
   return (
     <div className="app-shell">
