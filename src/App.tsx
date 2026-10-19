@@ -8,6 +8,7 @@ import DateInput from "./components/DateInput";
 import ClientDocument from "./components/ClientDocument";
 import LoginPage from "./components/LoginPage";
 import AccessGate from "./components/AccessGate";
+import UserAccess from "./components/UserAccess";
 
 import MaterialCharges from "./components/MaterialCharges"
 
@@ -41,7 +42,7 @@ import {
 } from "./services/report-period"
 import { firebaseAuth, isFirebaseConfigured } from "./services/firebase"
 import { dashboardGreeting, userInitials } from "./services/user-display"
-import { canMutateWorkflow, type AppUser } from "./services/access-control"
+import { canManageUsers, canMutateWorkflow, type AppUser } from "./services/access-control"
 
 import {
   categories,
@@ -52,7 +53,7 @@ import {
   statusFor,
 } from "./services/inventory"
 
-type Page = "dashboard" | "inventory" | "stock-in" | "stock-out" | "transactions" | "trail" | "reports" | "requests" | "purchase-requests" | "procurement" | "inspection" | "charges" | "reconciliation"
+type Page = "dashboard" | "inventory" | "stock-in" | "stock-out" | "transactions" | "trail" | "reports" | "requests" | "purchase-requests" | "procurement" | "inspection" | "charges" | "reconciliation" | "user-access"
 
 type Modal = null | "add" | "edit" | "view" | "stock-in" | "stock-out" | "transaction" | "transaction-detail" | "confirm"
 
@@ -321,6 +322,7 @@ function InventoryApp({ session, appUser }: { session: User; appUser: AppUser })
   const currentInitials = userInitials(currentPersonnel)
   const role = appUser.role
   const [page, setPage] = useState<Page>("dashboard")
+  useEffect(() => { if (page === "user-access" && !canManageUsers(role)) setPage("dashboard") }, [page, role])
 
   const [sidebar, setSidebar] = useState(false)
   const [procurementOpen,setProcurementOpen]=useState(true);
@@ -383,7 +385,7 @@ function InventoryApp({ session, appUser }: { session: User; appUser: AppUser })
     kind: "success" | "error"
   } | null>(null)
 
-  const title = nav.find((n) => n.id === page)?.label ?? "Inventory"
+  const title = page === "user-access" ? "User Access" : nav.find((n) => n.id === page)?.label ?? "Inventory"
 
   const canEdit = !hydrating && canMutateWorkflow(role)
 
@@ -492,10 +494,7 @@ function InventoryApp({ session, appUser }: { session: User; appUser: AppUser })
           ))}
         </nav>
         <div className="sidebar-bottom">
-          <button className="nav-item">
-            <Icon name="edit" />
-            <span>Settings</span>
-          </button>
+          {canManageUsers(role) && <><span className="nav-label">SETTINGS</span><button className={`nav-item ${page === "user-access" ? "active" : ""}`} onClick={() => { setPage("user-access"); setSidebar(false) }}><Icon name="edit" /><span>User Access</span>{page === "user-access" && <i />}</button></>}
           <div className="side-user">
             <div className="avatar">{currentInitials}</div>
             <div>
@@ -560,6 +559,7 @@ function InventoryApp({ session, appUser }: { session: User; appUser: AppUser })
               onView={showItem}
             />
           )}
+          {page === "user-access" && canManageUsers(role) && <UserAccess currentUser={appUser} />}
           {page === "dashboard" && (
             <section className="panel workflow-overview">
               <PanelHead
