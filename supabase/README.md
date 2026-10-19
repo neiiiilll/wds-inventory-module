@@ -29,3 +29,17 @@ Never place a database password, secret key, or `service_role` key in the React 
 7. Ensure Firebase ID tokens include the custom claim `role: "authenticated"`; Supabase uses that claim to assign the authenticated database role. Add the application role separately as a trusted claim such as `app_role` when production RLS is enabled.
 
 The login page opens Google through Firebase and returns to the same app origin. The inventory workspace is shown only after Firebase has restored an authenticated session. The sidebar logout action signs out of Firebase.
+
+## Apply role-based access
+
+After the base inventory migration, run `migrations/20261019000000_role_based_access.sql` in the Supabase SQL Editor before deploying the role-enabled React build.
+
+1. Back up the compatibility row with `select * from public.workflow_snapshots where id = 'default';`.
+2. Run the complete RBAC migration in one SQL Editor query.
+3. Sign in with `neilchristiand17@gmail.com` or `ojt@likhainternet.com`. The trusted registration RPC assigns that account Administrator; all other new Google accounts receive Viewer.
+4. Confirm `app_users` contains the signed-in user and that `user_role_history` is empty until an Administrator changes access.
+5. Inspect `pg_policies` and confirm the old `demo snapshot read`, `demo snapshot write`, and `authenticated access ...` policies are absent.
+
+Administrators edit roles and active access through **Settings → User Access**. Every change requires a reason and writes an immutable audit record. An Administrator cannot remove their own Administrator role or deactivate themselves.
+
+If the migration must be rolled back before the new UI is deployed, restore the previous database backup and reapply the base migration's prototype policies. Do not restore broad policies after the role-enabled UI is in production.
