@@ -14,9 +14,9 @@
 
 - Google through Firebase Authentication remains the only sign-in mechanism.
 - Supabase remains the inventory database and API.
-- Roles are exactly `Administrator`, `Inventory Staff`, and `Viewer`; a null role means Pending.
+- Roles are exactly `Administrator`, `Inventory Staff`, and `Viewer`; every new non-bootstrap account receives Viewer automatically.
 - Bootstrap Administrators are `neilchristiand17@gmail.com` and `ojt@likhainternet.com`, matched case-insensitively by trusted database code.
-- Pending and inactive users cannot load inventory data.
+- Inactive users cannot load inventory data.
 - Viewer can read and print but cannot mutate records.
 - Inventory Staff can perform operational work but cannot manage users or change requesting personnel.
 - Administrator has operational access and user-role management.
@@ -27,7 +27,7 @@
 
 - A client-supplied role during registration must be ignored; the registration test and SQL policy test must prove the database derives role itself.
 - Mixed-case bootstrap emails must still become Administrators; the access-control tests must cover case-insensitive matching.
-- Pending, inactive, and revoked users must not hydrate cached or remote inventory state; the application-shell source test and browser verification must cover all three states.
+- New users must enter as Viewer, while inactive and revoked users must not hydrate cached or remote inventory state; the application-shell source test and browser verification must cover these states.
 - An Administrator must not remove their own Administrator role or deactivate themselves; the migration test and RPC browser check must cover self-lockout prevention.
 - Existing broad `anon` and `authenticated using (true)` policies must not survive; the SQL policy test and post-migration catalog query must verify their removal.
 
@@ -42,7 +42,7 @@
 
 **Interfaces:**
 - Produces: `AppRole = "Administrator" | "Inventory Staff" | "Viewer"`
-- Produces: `AccessState = "loading" | "pending" | "active" | "inactive" | "error"`
+- Produces: `AccessState = "loading" | "active" | "inactive" | "error"`
 - Produces: `AppUser` with `firebaseUid`, `email`, `displayName`, `role`, `active`, `createdAt`, `updatedAt`, and `lastLoginAt`
 - Produces: `canManageUsers(role)`, `canMutateWorkflow(role)`, `canChangeRequester(role)`, and `canPrint(role)`
 - Produces: `isBootstrapAdministrator(email)` for client display/testing only; database code remains authoritative
@@ -89,7 +89,7 @@ Commit only the files from this task with message `feat: define application acce
 
 - [ ] **Step 1: Write a failing SQL contract test**
 
-Assert that the migration file creates both tables and both RPCs, contains the two bootstrap emails, rejects self-lockout, requires a nonblank reason, removes the demo snapshot policies and broad normalized-table policies, grants Viewer select only, grants operational writes only to Inventory Staff and Administrator, and grants role changes only through the Administrator RPC.
+Assert that the migration file creates both tables and both RPCs, contains the two bootstrap emails, defaults other new users to Viewer, rejects self-lockout, requires a nonblank reason, removes the demo snapshot policies and broad normalized-table policies, grants Viewer select only, grants operational writes only to Inventory Staff and Administrator, and grants role changes only through the Administrator RPC.
 
 - [ ] **Step 2: Run the SQL contract test and verify it fails**
 
@@ -174,12 +174,12 @@ Commit only this task's files with message `feat: connect Firebase users to assi
 
 **Interfaces:**
 - Consumes: `registerCurrentUser()`, `AppUser`, and permission predicates
-- Produces: `AccessGate` states for loading, Pending, inactive, error/retry, and active access
+- Produces: `AccessGate` states for loading, inactive, error/retry, and active access
 - Changes: `InventoryApp` receives `appUser: AppUser` and uses `appUser.role` instead of local role state
 
 - [ ] **Step 1: Write failing access-gate tests**
 
-Assert the demo selector and `setRole` are absent, Pending/inactive copy is present, the workspace receives a database-assigned role, inventory hydration happens only inside active access, Viewer mutations still fail, and non-Administrator requester changes still fail.
+Assert the demo selector and `setRole` are absent, inactive copy is present, newly registered users receive Viewer, the workspace receives a database-assigned role, inventory hydration happens only inside active access, Viewer mutations still fail, and non-Administrator requester changes still fail.
 
 - [ ] **Step 2: Run the focused test and verify it fails**
 
@@ -189,7 +189,7 @@ Expected: FAIL because the app still contains the demo selector and local role s
 
 - [ ] **Step 3: Implement `AccessGate` and refactor `App.tsx`**
 
-Register and load access after Firebase authentication. Show Pending, inactive, and retry/logout screens before mounting `InventoryApp`. Refresh access on window focus. Display the assigned role as text beside the signed-in name.
+Register and load access after Firebase authentication. Show inactive and retry/logout screens before mounting `InventoryApp`. Refresh access on window focus. Display the assigned role as text beside the signed-in name.
 
 - [ ] **Step 4: Replace local role checks with shared predicates**
 
@@ -310,7 +310,7 @@ Expected: deployment succeeds for `https://app-invb61a9.web.app`.
 
 - [ ] **Step 6: Verify the live access flows**
 
-Confirm bootstrap Administrator access, a new Pending account, Administrator role assignment, Viewer read/print-only behavior, Inventory Staff operational behavior, inactive-user denial, role history, refresh persistence, and logout/login restoration.
+Confirm bootstrap Administrator access, automatic Viewer access for a new account, Administrator role assignment, Viewer read/print-only behavior, Inventory Staff operational behavior, inactive-user denial, role history, refresh persistence, and logout/login restoration.
 
 - [ ] **Step 7: Record evidence and commit documentation**
 
