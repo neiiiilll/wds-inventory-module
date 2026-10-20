@@ -25,6 +25,7 @@ for (const contract of [
 assert.ok(source.includes("export async function registerCurrentUser(): Promise<AppUser>"), "Registration must not accept a client-selected role.")
 assert.ok(source.includes("Firebase authentication is required"), "Missing Firebase configuration/session error.")
 assert.ok(source.includes('current.role !== "Administrator"'), "Only the current demo Administrator may update access.")
+assert.equal(source.includes("Another Administrator must change your access."), false, "Demo Administrators must be able to change their own demo role.")
 assert.equal(source.includes("supabase"), false, "Demo access must not require Supabase or a paid backend.")
 
 console.log("User access service checks passed.")

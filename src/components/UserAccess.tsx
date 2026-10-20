@@ -35,7 +35,6 @@ export default function UserAccess({ currentUser, embedded = false }: { currentU
   useEffect(() => { void load() }, [load])
 
   const open = (user: AppUser) => {
-    if (user.firebaseUid === currentUser.firebaseUid) return
     setEditing(user)
     setRole(user.role)
     setActive(user.active)
@@ -70,7 +69,7 @@ export default function UserAccess({ currentUser, embedded = false }: { currentU
       <div className="panel-head"><div><h2>Registered users</h2><p>New Google accounts in this browser receive Viewer access automatically.</p></div></div>
       {loading ? <div className="empty"><p>Loading user access…</p></div> : <div className="table-wrap"><table><thead><tr><th>Display name</th><th>Email</th><th>Role</th><th>Status</th><th>Registered</th><th>Last login</th><th></th></tr></thead><tbody>{users.map(user => {
         const self = user.firebaseUid === currentUser.firebaseUid
-        return <tr key={user.firebaseUid}><td><strong>{user.displayName}</strong>{self && <small className="cell-sub">Signed-in account</small>}</td><td>{user.email}</td><td><span className="type">{user.role}</span></td><td><span className={`badge ${user.active ? "badge-available" : "badge-inactive"}`}><i />{user.active ? "Active" : "Inactive"}</span></td><td>{showDate(user.createdAt)}</td><td>{showDate(user.lastLoginAt)}</td><td><button className="btn btn-secondary" type="button" disabled={self} title={self ? "Another Administrator must edit your access." : "Edit access"} onClick={() => open(user)}>Edit access</button></td></tr>
+        return <tr key={user.firebaseUid}><td><strong>{user.displayName}</strong>{self && <small className="cell-sub">Signed-in account</small>}</td><td>{user.email}</td><td><span className="type">{user.role}</span></td><td><span className={`badge ${user.active ? "badge-available" : "badge-inactive"}`}><i />{user.active ? "Active" : "Inactive"}</span></td><td>{showDate(user.createdAt)}</td><td>{showDate(user.lastLoginAt)}</td><td><button className="btn btn-secondary" type="button" title="Edit demo access" onClick={() => open(user)}>Edit access</button></td></tr>
       })}</tbody></table></div>}
     </section>
     <section className="panel user-access-panel">

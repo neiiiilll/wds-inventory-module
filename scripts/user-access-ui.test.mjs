@@ -29,7 +29,9 @@ for (const text of [
 for (const role of ["Administrator", "Inventory Staff", "Viewer"])
   assert.ok(accessControl.includes(role), `Missing shared role option: ${role}`)
 
-assert.ok(component.includes("currentUser.firebaseUid"), "The signed-in Administrator row must be protected from self-editing.")
+assert.equal(component.includes("disabled={self}"), false, "Demo Administrators must be able to edit their own demo access.")
+assert.equal(component.includes("if (user.firebaseUid === currentUser.firebaseUid) return"), false, "Opening self access must not be blocked in demo mode.")
+assert.ok(component.includes("Signed-in account"), "The current account must remain clearly identified.")
 assert.ok(app.includes('page === "settings"'), "The application must route to Settings.")
 assert.ok(settings.includes("canManageUsers(currentUser.role)"), "User Access content must be Administrator-only inside Settings.")
 

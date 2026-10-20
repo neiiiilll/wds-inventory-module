@@ -95,8 +95,6 @@ export async function setAppUserAccess(input: {
   const current = users.find(user => user.firebaseUid === firebaseUser.uid)
   if (!current || current.role !== "Administrator" || !current.active)
     throw new Error("Only an active Administrator can change demo access.")
-  if (input.targetUid === current.firebaseUid)
-    throw new Error("Another Administrator must change your access.")
   const target = users.find(user => user.firebaseUid === input.targetUid)
   if (!target) throw new Error("The selected demo user could not be found.")
   const occurredAt = new Date().toISOString()
