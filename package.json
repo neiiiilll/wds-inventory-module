@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "test": "node scripts/report-period.test.mjs && node scripts/workflow.test.mjs && node scripts/client-forms.test.mjs && node scripts/procurement.test.mjs && node scripts/date-input.test.mjs && node scripts/request-controls.test.mjs && node scripts/procurement-completion.test.mjs && node scripts/workflow-storage.test.mjs && node scripts/site-config.test.mjs && node scripts/user-display.test.mjs && node scripts/access-control.test.mjs && node scripts/rbac-migration.test.mjs && node scripts/user-access.test.mjs && node scripts/access-gate.test.mjs && node scripts/user-access-ui.test.mjs && node scripts/firebase-claims.test.mjs && node scripts/settings-page.test.mjs",
+    "test": "node scripts/report-period.test.mjs && node scripts/workflow.test.mjs && node scripts/client-forms.test.mjs && node scripts/procurement.test.mjs && node scripts/date-input.test.mjs && node scripts/request-controls.test.mjs && node scripts/procurement-completion.test.mjs && node scripts/workflow-storage.test.mjs && node scripts/supabase-workflow.test.mjs && node scripts/site-config.test.mjs && node scripts/user-display.test.mjs && node scripts/access-control.test.mjs && node scripts/rbac-migration.test.mjs && node scripts/user-access.test.mjs && node scripts/access-gate.test.mjs && node scripts/user-access-ui.test.mjs && node scripts/firebase-claims.test.mjs && node scripts/settings-page.test.mjs",
     "build": "vite build",
     "deploy:hosting": "npm run build && firebase deploy --project apps-workspace-b61a9 --only hosting:app",
     "preview": "vite preview",

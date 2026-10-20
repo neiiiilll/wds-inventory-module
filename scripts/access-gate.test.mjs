@@ -17,10 +17,9 @@ assert.ok(gate.includes("window.setInterval"), "Long-lived sessions must periodi
 assert.ok(app.includes("<AccessGate"), "The authenticated shell must pass through AccessGate.")
 assert.ok(app.includes("appUser.role"), "InventoryApp must use the assigned database role.")
 assert.equal(app.includes('useState<Role>("Inventory Staff")'), false, "The client-controlled role state must be removed.")
-assert.ok(app.includes("Demo role"), "The interface must clearly label locally enforced demo roles.")
+assert.ok(app.includes("Role"), "The interface must display the assigned database role.")
 assert.equal(app.includes("onChange={(e) => setRole"), false, "Users must not change their own role.")
-assert.ok(app.includes("loadWorkflowState"), "Free demo inventory must hydrate from browser storage.")
-assert.ok(app.includes("saveWorkflowState(next)"), "Free demo inventory must persist in browser storage.")
-assert.equal(app.includes("loadWorkflowStateFromSupabase"), false, "Free demo mode must not depend on Supabase authentication.")
+assert.ok(app.includes("loadRemoteWorkflow"), "Inventory must hydrate from the shared Supabase snapshot.")
+assert.ok(app.includes("saveRemoteWorkflow"), "Inventory mutations must sync to Supabase.")
 
 console.log("Access gate checks passed.")

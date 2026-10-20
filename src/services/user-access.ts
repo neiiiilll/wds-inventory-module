@@ -1,15 +1,37 @@
 import { firebaseAuth } from "./firebase"
+import { ensureFirebaseSupabaseRole } from "./firebase-claims"
+import { supabase } from "./supabase"
 import {
   isAppRole,
-  isBootstrapAdministrator,
-  normalizeDemoAccess,
   type AppRole,
   type AppUser,
   type UserRoleHistoryEntry,
 } from "./access-control"
 
-const usersStorageKey = "wds-inventory-demo-users-v1"
-const historyStorageKey = "wds-inventory-demo-role-history-v1"
+type AppUserRow = {
+  firebase_uid: string
+  email: string
+  display_name: string
+  role: string
+  active: boolean
+  created_at: string
+  updated_at: string
+  last_login_at: string
+}
+
+type UserRoleHistoryRow = {
+  id: string
+  target_uid: string
+  target_email: string
+  previous_role: string | null
+  new_role: string
+  previous_active: boolean | null
+  new_active: boolean
+  reason: string
+  actor_uid: string
+  actor_email: string
+  occurred_at: string
+}
 
 function requireFirebaseUser() {
   const user = firebaseAuth?.currentUser
@@ -17,69 +39,83 @@ function requireFirebaseUser() {
   return user
 }
 
-function readUsers(): AppUser[] {
-  const parsed = JSON.parse(localStorage.getItem(usersStorageKey) ?? "[]") as AppUser[]
-  return Array.isArray(parsed)
-    ? parsed.filter(user => user && typeof user.firebaseUid === "string" && isAppRole(user.role))
-    : []
+function requireSupabase() {
+  if (!supabase) throw new Error("Supabase is not configured.")
+  return supabase
 }
 
-function writeUsers(users: AppUser[]) {
-  localStorage.setItem(usersStorageKey, JSON.stringify(users))
+function databaseError(error: { message?: string } | null, fallback: string) {
+  if (error) throw new Error(error.message || fallback)
 }
 
-function readHistory(): UserRoleHistoryEntry[] {
-  const parsed = JSON.parse(localStorage.getItem(historyStorageKey) ?? "[]") as UserRoleHistoryEntry[]
-  return Array.isArray(parsed) ? parsed : []
+function toAppUser(row: AppUserRow): AppUser {
+  if (!isAppRole(row.role)) throw new Error("The database returned an invalid application role.")
+  return {
+    firebaseUid: row.firebase_uid,
+    email: row.email,
+    displayName: row.display_name,
+    role: row.role,
+    active: row.active,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    lastLoginAt: row.last_login_at,
+  }
 }
 
-function newHistoryId() {
-  return globalThis.crypto?.randomUUID?.() ?? `access-${Date.now()}`
+function toHistoryEntry(row: UserRoleHistoryRow): UserRoleHistoryEntry {
+  if (!isAppRole(row.new_role) || (row.previous_role !== null && !isAppRole(row.previous_role))) {
+    throw new Error("The database returned an invalid role history entry.")
+  }
+  return {
+    id: row.id,
+    targetUid: row.target_uid,
+    targetEmail: row.target_email,
+    previousRole: row.previous_role,
+    newRole: row.new_role,
+    previousActive: row.previous_active,
+    newActive: row.new_active,
+    reason: row.reason,
+    actorUid: row.actor_uid,
+    actorEmail: row.actor_email,
+    occurredAt: row.occurred_at,
+  }
+}
+
+async function prepareRequest() {
+  const user = requireFirebaseUser()
+  await ensureFirebaseSupabaseRole()
+  return { client: requireSupabase(), user }
 }
 
 export async function registerCurrentUser(): Promise<AppUser> {
-  const firebaseUser = requireFirebaseUser()
-  const now = new Date().toISOString()
-  const users = readUsers()
-  const existing = users.find(user => user.firebaseUid === firebaseUser.uid)
-  const recoveredAccess = normalizeDemoAccess(
-    existing ?? { role: isBootstrapAdministrator(firebaseUser.email!) ? "Administrator" : "Viewer", active: true },
-    firebaseUser.email!,
-  )
-  const next: AppUser = existing
-    ? {
-        ...existing,
-        ...recoveredAccess,
-        email: firebaseUser.email!,
-        displayName: firebaseUser.displayName || firebaseUser.email!,
-        updatedAt: now,
-        lastLoginAt: now,
-      }
-    : {
-        firebaseUid: firebaseUser.uid,
-        email: firebaseUser.email!,
-        displayName: firebaseUser.displayName || firebaseUser.email!,
-        ...recoveredAccess,
-        createdAt: now,
-        updatedAt: now,
-        lastLoginAt: now,
-      }
-  writeUsers(existing
-    ? users.map(user => user.firebaseUid === next.firebaseUid ? next : user)
-    : [...users, next])
-  return next
+  const { client } = await prepareRequest()
+  const { data, error } = await client.rpc("register_current_app_user")
+  databaseError(error, "User registration failed.")
+  const row = (Array.isArray(data) ? data[0] : data) as AppUserRow | null
+  if (!row) throw new Error("Supabase did not return the registered user.")
+  return toAppUser(row)
 }
 
 export async function loadCurrentUser(): Promise<AppUser> {
-  const firebaseUser = requireFirebaseUser()
-  const user = readUsers().find(candidate => candidate.firebaseUid === firebaseUser.uid)
-  if (!user) return registerCurrentUser()
-  return user
+  const { client, user } = await prepareRequest()
+  const { data, error } = await client
+    .from("app_users")
+    .select("*")
+    .eq("firebase_uid", user.uid)
+    .maybeSingle()
+  databaseError(error, "User access could not be loaded.")
+  if (!data) return registerCurrentUser()
+  return toAppUser(data as AppUserRow)
 }
 
 export async function listAppUsers(): Promise<AppUser[]> {
-  requireFirebaseUser()
-  return readUsers().sort((left, right) => left.displayName.localeCompare(right.displayName))
+  const { client } = await prepareRequest()
+  const { data, error } = await client
+    .from("app_users")
+    .select("*")
+    .order("display_name")
+  databaseError(error, "User access could not be loaded.")
+  return ((data ?? []) as AppUserRow[]).map(toAppUser)
 }
 
 export async function setAppUserAccess(input: {
@@ -88,44 +124,34 @@ export async function setAppUserAccess(input: {
   active: boolean
   reason: string
 }): Promise<AppUser> {
-  const firebaseUser = requireFirebaseUser()
   const reason = input.reason.trim()
   if (!reason) throw new Error("Change reason is required.")
-  const users = readUsers()
-  const current = users.find(user => user.firebaseUid === firebaseUser.uid)
-  if (!current || current.role !== "Administrator" || !current.active)
-    throw new Error("Only an active Administrator can change demo access.")
-  const target = users.find(user => user.firebaseUid === input.targetUid)
-  if (!target) throw new Error("The selected demo user could not be found.")
-  const occurredAt = new Date().toISOString()
-  const updated: AppUser = {
-    ...target,
-    role: input.role,
-    active: input.active,
-    updatedAt: occurredAt,
-  }
-  writeUsers(users.map(user => user.firebaseUid === updated.firebaseUid ? updated : user))
-  const history = readHistory()
-  history.unshift({
-    id: newHistoryId(),
-    targetUid: updated.firebaseUid,
-    targetEmail: updated.email,
-    previousRole: target.role,
-    newRole: updated.role,
-    previousActive: target.active,
-    newActive: updated.active,
-    reason,
-    actorUid: current.firebaseUid,
-    actorEmail: current.email,
-    occurredAt,
+  const { client } = await prepareRequest()
+  const { data, error } = await client.rpc("set_app_user_access", {
+    target_uid: input.targetUid,
+    next_role: input.role,
+    next_active: input.active,
+    change_reason: reason,
   })
-  localStorage.setItem(historyStorageKey, JSON.stringify(history))
+  databaseError(error, "Access could not be updated.")
+  const row = (Array.isArray(data) ? data[0] : data) as AppUserRow | null
+  if (!row) throw new Error("Supabase did not return the updated user.")
   window.dispatchEvent(new Event("wds-access-invalidated"))
-  return updated
+  return toAppUser(row)
 }
 
-export async function listUserRoleHistory(targetUid?: string): Promise<UserRoleHistoryEntry[]> {
-  requireFirebaseUser()
-  const history = readHistory()
-  return targetUid ? history.filter(entry => entry.targetUid === targetUid) : history
+export async function listUserRoleHistory(
+  targetUid?: string,
+): Promise<UserRoleHistoryEntry[]> {
+  const { client } = await prepareRequest()
+  let query = client
+    .from("user_role_history")
+    .select("*")
+    .order("occurred_at", { ascending: false })
+  if (targetUid) query = query.eq("target_uid", targetUid)
+  const { data, error } = await query
+  databaseError(error, "Access history could not be loaded.")
+  return ((data ?? []) as UserRoleHistoryRow[]).map(toHistoryEntry)
 }
+
+export const APP_ROLES = ["Administrator", "Inventory Staff", "Viewer"] as const

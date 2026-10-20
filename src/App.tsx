@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import type { User } from "firebase/auth"
 import { onAuthStateChanged, signOut } from "firebase/auth"
 
@@ -25,6 +25,11 @@ import {
 } from "./services/workflow"
 
 import { loadWorkflowState, saveWorkflowState } from "./services/workflow-storage"
+import {
+  loadRemoteWorkflow,
+  saveRemoteWorkflow,
+} from "./services/workflow-repository"
+import { createSerialQueue } from "./services/async-queue"
 
 import {
   isInReportRange,
@@ -33,6 +38,7 @@ import {
   type ReportPeriod,
 } from "./services/report-period"
 import { firebaseAuth, isFirebaseConfigured } from "./services/firebase"
+import { isSupabaseConfigured } from "./services/supabase"
 import { dashboardGreeting, userInitials } from "./services/user-display"
 import { canMutateWorkflow, type AppUser } from "./services/access-control"
 
@@ -320,6 +326,9 @@ function InventoryApp({ session, appUser }: { session: User; appUser: AppUser })
   useEffect(()=>{if(procurementSteps.some(step=>step.id===page))setProcurementOpen(true);},[page]);
 
   const [workflow, setWorkflow] = useState(() => loadWorkflowState())
+  const [workflowLoading, setWorkflowLoading] = useState(isSupabaseConfigured)
+  const remoteReady = useRef(false)
+  const saveQueue = useRef(createSerialQueue())
 
   const items = workflow.items
 
@@ -348,6 +357,41 @@ function InventoryApp({ session, appUser }: { session: User; appUser: AppUser })
     window.setTimeout(() => setToast(null), 3500)
   }
 
+  useEffect(() => {
+    if (!isSupabaseConfigured) return
+
+    let active = true
+    const hydrateWorkflow = async () => {
+      try {
+        const remote = await loadRemoteWorkflow()
+        if (!active) return
+
+        if (remote) {
+          setWorkflow(remote)
+          saveWorkflowState(remote)
+        } else {
+          await saveRemoteWorkflow(workflow)
+          if (!active) return
+        }
+        remoteReady.current = true
+      } catch (error) {
+        if (active) {
+          setToast({
+            text: `Shared inventory could not be loaded. Using browser data. ${(error as Error).message}`,
+            kind: "error",
+          })
+        }
+      } finally {
+        if (active) setWorkflowLoading(false)
+      }
+    }
+
+    void hydrateWorkflow()
+    return () => {
+      active = false
+    }
+  }, [])
+
   const requirePermission = (action: () => void) =>
     canEdit
       ? action()
@@ -373,7 +417,22 @@ function InventoryApp({ session, appUser }: { session: User; appUser: AppUser })
       const next = applyWorkflowAction(workflow, action, role, currentPersonnel)
       setWorkflow(next)
       saveWorkflowState(next)
-      notify("Demo record saved in this browser.")
+      if (remoteReady.current) {
+        void saveQueue.current(() => saveRemoteWorkflow(next))
+          .then(() => notify("Record saved to the shared inventory."))
+          .catch((error) =>
+            notify(
+              `Saved in this browser, but cloud sync failed. ${(error as Error).message}`,
+              "error",
+            ),
+          )
+      } else {
+        notify(
+          isSupabaseConfigured
+            ? "Record saved in this browser. Cloud sync is unavailable."
+            : "Demo record saved in this browser.",
+        )
+      }
       return true
     } catch (error) {
       notify((error as Error).message, "error")
@@ -388,6 +447,14 @@ function InventoryApp({ session, appUser }: { session: User; appUser: AppUser })
         setPage(next)
       } else setModal(next)
     })
+
+  if (workflowLoading) {
+    return (
+      <main className="login-page">
+        <div className="login-loading">Loading shared inventory…</div>
+      </main>
+    )
+  }
 
   return (
     <div className="app-shell">
@@ -422,7 +489,7 @@ function InventoryApp({ session, appUser }: { session: User; appUser: AppUser })
             <div className="avatar">{currentInitials}</div>
             <div>
               <strong>{currentPersonnel}</strong>
-              <span>Demo role · {role}</span>
+              <span>Role · {role}</span>
             </div>
             <Icon name="dots" />
           </div>
@@ -463,7 +530,7 @@ function InventoryApp({ session, appUser }: { session: User; appUser: AppUser })
             <div className="avatar">{currentInitials}</div>
             <div className="top-user">
               <strong>{currentPersonnel}</strong>
-              <span>Demo role · {role}</span>
+              <span>Role · {role}</span>
             </div>
           </div>
         </header>

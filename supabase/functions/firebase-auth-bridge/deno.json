@@ -1,0 +1,6 @@
+{
+  "imports": {
+    "firebase-admin/app": "npm:firebase-admin@13.10.0/app",
+    "firebase-admin/auth": "npm:firebase-admin@13.10.0/auth"
+  }
+}

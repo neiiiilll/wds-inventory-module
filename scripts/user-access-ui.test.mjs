@@ -20,11 +20,12 @@ for (const text of [
   "Registered",
   "Last login",
   "Reason for change",
-  "Access history",
   "listAppUsers",
   "setAppUserAccess",
-  "listUserRoleHistory",
 ]) assert.ok(component.includes(text), `Missing Administrator UI contract: ${text}`)
+
+assert.equal(component.includes("Access history"), false, "Settings must not display access history.")
+assert.equal(component.includes("listUserRoleHistory"), false, "Settings must not fetch hidden access history.")
 
 for (const role of ["Administrator", "Inventory Staff", "Viewer"])
   assert.ok(accessControl.includes(role), `Missing shared role option: ${role}`)

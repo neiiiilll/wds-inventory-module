@@ -1,0 +1,2 @@
+[functions.firebase-auth-bridge]
+verify_jwt = false
