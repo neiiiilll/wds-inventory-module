@@ -39,6 +39,14 @@ export const isAppRole = (value: unknown): value is AppRole =>
 export const isBootstrapAdministrator = (email: string): boolean =>
   bootstrapAdministrators.has(email.trim().toLowerCase())
 
+export const normalizeDemoAccess = (
+  access: Pick<AppUser, "role" | "active">,
+  email: string,
+): Pick<AppUser, "role" | "active"> =>
+  isBootstrapAdministrator(email)
+    ? { role: "Administrator", active: true }
+    : { role: access.role, active: access.active }
+
 export const canManageUsers = (role: AppRole): boolean => role === "Administrator"
 export const canMutateWorkflow = (role: AppRole): boolean => role !== "Viewer"
 export const canChangeRequester = (role: AppRole): boolean => role === "Administrator"

@@ -2,6 +2,7 @@ import { firebaseAuth } from "./firebase"
 import {
   isAppRole,
   isBootstrapAdministrator,
+  normalizeDemoAccess,
   type AppRole,
   type AppUser,
   type UserRoleHistoryEntry,
@@ -41,9 +42,14 @@ export async function registerCurrentUser(): Promise<AppUser> {
   const now = new Date().toISOString()
   const users = readUsers()
   const existing = users.find(user => user.firebaseUid === firebaseUser.uid)
+  const recoveredAccess = normalizeDemoAccess(
+    existing ?? { role: isBootstrapAdministrator(firebaseUser.email!) ? "Administrator" : "Viewer", active: true },
+    firebaseUser.email!,
+  )
   const next: AppUser = existing
     ? {
         ...existing,
+        ...recoveredAccess,
         email: firebaseUser.email!,
         displayName: firebaseUser.displayName || firebaseUser.email!,
         updatedAt: now,
@@ -53,8 +59,7 @@ export async function registerCurrentUser(): Promise<AppUser> {
         firebaseUid: firebaseUser.uid,
         email: firebaseUser.email!,
         displayName: firebaseUser.displayName || firebaseUser.email!,
-        role: isBootstrapAdministrator(firebaseUser.email!) ? "Administrator" : "Viewer",
-        active: true,
+        ...recoveredAccess,
         createdAt: now,
         updatedAt: now,
         lastLoginAt: now,
