@@ -14,7 +14,6 @@ import {
   WField,
   WForm,
   WInput,
-  WNote,
   WSelect,
   WSummary,
 } from "./WorkflowUI"
@@ -67,14 +66,6 @@ export default function MaterialCharges({
           </WButton>
         </div>
       </div>
-      <WNote>
-        {state.sampleCosts
-          ? "Sample acquisition prices are used in this mockup. "
-          : ""}
-        Moving weighted average values interchangeable stock; individually
-        tracked assets use their acquisition cost. Issue costs remain locked
-        after posting.
-      </WNote>
       <div className="panel workflow-toolbar no-print">
         <WField label="Project / service connection">
           <WSelect
