@@ -63,11 +63,11 @@ export default function UserAccess({ currentUser, embedded = false }: { currentU
 
   return <>
     {embedded
-      ? <div className="settings-section-heading"><div><span className="eyebrow">ADMINISTRATION</span><h2>User Access</h2><p>Assign roles and control access for Google accounts registered with the system.</p></div><WButton secondary onClick={() => void load()} disabled={loading}>Refresh</WButton></div>
+      ? <div className="settings-section-heading"><div><span className="eyebrow">DEMO ADMINISTRATION</span><h2>User Access</h2><p>Assign demo roles to Google accounts registered in this browser.</p></div><WButton secondary onClick={() => void load()} disabled={loading}>Refresh</WButton></div>
       : <div className="page-header"><div><span className="eyebrow">SETTINGS</span><h1>User Access</h1><p>Assign roles and control access for Google accounts registered with the system.</p></div><div className="page-actions"><WButton secondary onClick={() => void load()} disabled={loading}>Refresh</WButton></div></div>}
     {error && <div role="alert" className="workflow-note workflow-error">{error}</div>}
     <section className="panel user-access-panel">
-      <div className="panel-head"><div><h2>Registered users</h2><p>New Google accounts receive Viewer access automatically.</p></div></div>
+      <div className="panel-head"><div><h2>Registered users</h2><p>New Google accounts in this browser receive Viewer access automatically.</p></div></div>
       {loading ? <div className="empty"><p>Loading user access…</p></div> : <div className="table-wrap"><table><thead><tr><th>Display name</th><th>Email</th><th>Role</th><th>Status</th><th>Registered</th><th>Last login</th><th></th></tr></thead><tbody>{users.map(user => {
         const self = user.firebaseUid === currentUser.firebaseUid
         return <tr key={user.firebaseUid}><td><strong>{user.displayName}</strong>{self && <small className="cell-sub">Signed-in account</small>}</td><td>{user.email}</td><td><span className="type">{user.role}</span></td><td><span className={`badge ${user.active ? "badge-available" : "badge-inactive"}`}><i />{user.active ? "Active" : "Inactive"}</span></td><td>{showDate(user.createdAt)}</td><td>{showDate(user.lastLoginAt)}</td><td><button className="btn btn-secondary" type="button" disabled={self} title={self ? "Another Administrator must edit your access." : "Edit access"} onClick={() => open(user)}>Edit access</button></td></tr>

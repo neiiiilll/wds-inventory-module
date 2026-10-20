@@ -4,7 +4,6 @@ import { signOut } from "firebase/auth"
 import { firebaseAuth } from "../services/firebase"
 import type { AppUser } from "../services/access-control"
 import { loadCurrentUser, registerCurrentUser } from "../services/user-access"
-import { ensureFirebaseSupabaseRole } from "../services/firebase-supabase-token"
 
 export default function AccessGate({ session, children }: {
   session: User
@@ -18,7 +17,6 @@ export default function AccessGate({ session, children }: {
     setLoading(true)
     setError("")
     try {
-      await ensureFirebaseSupabaseRole()
       setAppUser(await registerCurrentUser())
     } catch (accessError) {
       setAppUser(null)
@@ -26,7 +24,7 @@ export default function AccessGate({ session, children }: {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [session.uid])
 
   useEffect(() => { void register() }, [register, session.uid])
 
@@ -44,10 +42,12 @@ export default function AccessGate({ session, children }: {
     }
     window.addEventListener("focus", refreshAccess)
     window.addEventListener("wds-access-invalidated", refreshAccess)
+    window.addEventListener("storage", refreshAccess)
     const refreshTimer = window.setInterval(refreshAccess, 60_000)
     return () => {
       window.removeEventListener("focus", refreshAccess)
       window.removeEventListener("wds-access-invalidated", refreshAccess)
+      window.removeEventListener("storage", refreshAccess)
       window.clearInterval(refreshTimer)
     }
   }, [])

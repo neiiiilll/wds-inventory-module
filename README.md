@@ -40,7 +40,7 @@ Vite listens on `0.0.0.0` by default. For another device on the same network, us
 - **Material Charges:** moving weighted-average cost for interchangeable items, specific acquisition cost for individually tracked assets, and job totals based on actual issues.
 - **Returns and Reconciliation:** original-release-linked returns, original-cost credits for accepted usable returns, physical counts, and documented corrections.
 - **Transactions, Stock Trail, and Reports:** movement history, running balances, document/project filters, date ranges, and report exports.
-- **Demo roles:** Administrator, Inventory Staff, and Viewer. The role selector is retained for prototype demonstration; Viewer cannot change inventory records. Production role assignment must move to trusted Firebase claims before go-live.
+- **Demo roles:** Administrator, Inventory Staff, and Viewer. The approved administrator emails bootstrap as Administrators, other Google accounts start as Viewer, and Administrators can demonstrate role changes in Settings. Viewer cannot change inventory records.
 
 ## Procurement progression
 
@@ -58,7 +58,7 @@ The mockup records reviewer acknowledgments; it does not authenticate the named 
 
 ### Authentication and persistence
 
-Firebase Authentication provides Google-only sign-in. Supabase remains the database and receives the Firebase ID token through its third-party authentication integration. Firebase tokens must include `role: "authenticated"` for Supabase to treat them as authenticated database requests. The three role options remain available for prototype demonstration; the current selector is not a production authorization boundary.
+Firebase Authentication provides Google-only sign-in. The deployed free-tier demonstration does not use Firebase Functions. Demo users, roles, access history, and workflow records are saved in the current browser so the application can be shown without a billing-plan upgrade. The role controls demonstrate the intended Administrator, Inventory Staff, and Viewer experience; they are not a production authorization boundary and do not synchronize between browsers.
 
 ### Quotations, PO prices and dispatch
 
@@ -110,6 +110,8 @@ IAR and RIS retain blank signature spaces for manual signing after printing. The
 ## Browser storage
 
 Workflow data uses the local storage key `wds-inventory-workflow-v1`. Inventory actions save records in the current browser and origin. For example, `localhost:8443` and a network IP address use separate storage, even when they serve the same application.
+
+Demo access uses `wds-inventory-demo-users-v1` and `wds-inventory-demo-role-history-v1`. A Google account must sign in once in the same browser before it appears in the Administrator's User Access list.
 
 The initial screen contains demo records when no saved data exists. Recorded names and dates represent prototype acknowledgments.
 

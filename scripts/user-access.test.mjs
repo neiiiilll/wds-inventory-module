@@ -15,18 +15,16 @@ for (const contract of [
   "listAppUsers",
   "setAppUserAccess",
   "listUserRoleHistory",
-  'rpc("register_current_app_user")',
-  'rpc("set_app_user_access"',
-  '.from("app_users")',
-  '.from("user_role_history")',
-  "firebase_uid",
-  "display_name",
-  "last_login_at",
+  "wds-inventory-demo-users-v1",
+  "wds-inventory-demo-role-history-v1",
+  "isBootstrapAdministrator",
+  "localStorage",
   "reason.trim()",
 ]) assert.ok(source.includes(contract), `Missing user-access contract: ${contract}`)
 
-assert.equal(/registerCurrentUser[\s\S]{0,500}(role|next_role)\s*:/i.test(source), false, "Registration must not send a client-selected role.")
+assert.ok(source.includes("export async function registerCurrentUser(): Promise<AppUser>"), "Registration must not accept a client-selected role.")
 assert.ok(source.includes("Firebase authentication is required"), "Missing Firebase configuration/session error.")
-assert.ok(source.includes("Supabase is not configured"), "Missing Supabase configuration error.")
+assert.ok(source.includes('current.role !== "Administrator"'), "Only the current demo Administrator may update access.")
+assert.equal(source.includes("supabase"), false, "Demo access must not require Supabase or a paid backend.")
 
 console.log("User access service checks passed.")

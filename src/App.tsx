@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import type { User } from "firebase/auth"
 import { onAuthStateChanged, signOut } from "firebase/auth"
 
@@ -16,9 +16,6 @@ import Reconciliation from "./components/Reconciliation"
 
 import {
   applyWorkflowAction,
-  createWorkflowState,
-  migrateProcurement,
-  migrateProcurementCompletion,
   money,
   newId,
   requestFulfillmentStatus,
@@ -27,10 +24,7 @@ import {
   type WorkflowState,
 } from "./services/workflow"
 
-import {
-  loadWorkflowStateFromSupabase,
-  saveWorkflowStateToSupabase,
-} from "./services/workflow-storage"
+import { loadWorkflowState, saveWorkflowState } from "./services/workflow-storage"
 
 import {
   isInReportRange,
@@ -44,8 +38,6 @@ import { canMutateWorkflow, type AppUser } from "./services/access-control"
 
 import {
   categories,
-  initialItems,
-  initialTransactions,
   InventoryItem,
   InventoryTransaction,
   statusFor,
@@ -327,34 +319,7 @@ function InventoryApp({ session, appUser }: { session: User; appUser: AppUser })
   useEffect(()=>{if(page!=="inspection")setInspectionOrderId("");},[page]);
   useEffect(()=>{if(procurementSteps.some(step=>step.id===page))setProcurementOpen(true);},[page]);
 
-  const [workflow, setWorkflow] = useState(() =>
-    migrateProcurementCompletion(migrateProcurement(createWorkflowState(initialItems, initialTransactions))),
-  )
-
-  const workflowRef = useRef(workflow)
-  const [hydrating, setHydrating] = useState(true)
-  const [storageWarning, setStorageWarning] = useState("")
-  const [reloadToken, setReloadToken] = useState(0)
-
-  useEffect(() => {
-    let active = true
-    const revisionAtHydrationStart = workflowRef.current.revision
-    setHydrating(true)
-    setStorageWarning("")
-    void loadWorkflowStateFromSupabase()
-      .then((remote) => {
-        if (!active || !remote || workflowRef.current.revision !== revisionAtHydrationStart) return
-        workflowRef.current = remote
-        setWorkflow(remote)
-      })
-      .catch((error: Error) => {
-        if (active) setStorageWarning(`Inventory data could not be loaded. ${error.message}`)
-      })
-      .finally(() => {
-        if (active) setHydrating(false)
-      })
-    return () => { active = false }
-  }, [reloadToken])
+  const [workflow, setWorkflow] = useState(() => loadWorkflowState())
 
   const items = workflow.items
 
@@ -375,7 +340,7 @@ function InventoryApp({ session, appUser }: { session: User; appUser: AppUser })
 
   const title = page === "settings" ? "Settings" : nav.find((n) => n.id === page)?.label ?? "Inventory"
 
-  const canEdit = !hydrating && canMutateWorkflow(role)
+  const canEdit = canMutateWorkflow(role)
 
   const notify = (text: string, kind: "success" | "error" = "success") => {
     setToast({ text, kind })
@@ -404,32 +369,11 @@ function InventoryApp({ session, appUser }: { session: User; appUser: AppUser })
   }
 
   const onWorkflowAction = (action: WorkflowAction): boolean => {
-    if (hydrating) {
-      notify("Loading shared inventory data. Please try again in a moment.", "error")
-      return false
-    }
     try {
-      const previous = workflowRef.current
-      const next = applyWorkflowAction(previous, action, role, currentPersonnel)
-
-      workflowRef.current = next
-
+      const next = applyWorkflowAction(workflow, action, role, currentPersonnel)
       setWorkflow(next)
-
-      setStorageWarning("")
-      void saveWorkflowStateToSupabase(next)
-        .then(() => {
-          notify("Record saved. Linked stock and cost records are up to date.")
-        })
-        .catch((error: Error) => {
-          if (workflowRef.current.revision === next.revision) {
-            workflowRef.current = previous
-            setWorkflow(previous)
-          }
-          setStorageWarning(`Inventory data could not be saved. ${error.message}`)
-          window.dispatchEvent(new Event("wds-access-invalidated"))
-        })
-
+      saveWorkflowState(next)
+      notify("Demo record saved in this browser.")
       return true
     } catch (error) {
       notify((error as Error).message, "error")
@@ -444,12 +388,6 @@ function InventoryApp({ session, appUser }: { session: User; appUser: AppUser })
         setPage(next)
       } else setModal(next)
     })
-
-  if (hydrating)
-    return <main className="login-page"><div className="login-loading">Loading inventory access…</div></main>
-
-  if (storageWarning)
-    return <main className="login-page"><section className="login-card" aria-labelledby="inventory-load-error"><div className="login-brandmark">W</div><h1 id="inventory-load-error">Inventory data could not be loaded</h1><p className="login-subtitle">{storageWarning}</p><button className="google-login-button" type="button" onClick={() => setReloadToken((value) => value + 1)}>Retry</button><button className="btn btn-ghost" type="button" onClick={() => { if (firebaseAuth) void signOut(firebaseAuth) }}>Log out</button></section></main>
 
   return (
     <div className="app-shell">
@@ -484,7 +422,7 @@ function InventoryApp({ session, appUser }: { session: User; appUser: AppUser })
             <div className="avatar">{currentInitials}</div>
             <div>
               <strong>{currentPersonnel}</strong>
-              <span>{role}</span>
+              <span>Demo role · {role}</span>
             </div>
             <Icon name="dots" />
           </div>
@@ -525,16 +463,11 @@ function InventoryApp({ session, appUser }: { session: User; appUser: AppUser })
             <div className="avatar">{currentInitials}</div>
             <div className="top-user">
               <strong>{currentPersonnel}</strong>
-              <span>{role}</span>
+              <span>Demo role · {role}</span>
             </div>
           </div>
         </header>
         <div className="content">
-          {storageWarning && (
-            <div role="alert" className="workflow-note workflow-error">
-              {storageWarning}
-            </div>
-          )}
           {page === "dashboard" && (
             <Dashboard
               items={items}

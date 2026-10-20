@@ -1,11 +1,7 @@
 import { initialItems, initialTransactions } from "./inventory"
 import { createWorkflowState, migrateFormReferences, migrateProcurement, migrateProcurementCompletion, type WorkflowState } from "./workflow"
-import { firebaseAuth } from "./firebase"
-import { isSupabaseConfigured, supabase } from "./supabase"
-import { createSerialQueue } from "./async-queue"
 
 const storageKey = "wds-inventory-workflow-v1"
-const saveQueue = createSerialQueue()
 function validateWorkflowState(parsed: WorkflowState): WorkflowState {
   if (
     parsed.version !== 1 || (parsed.quotations!==undefined&&!Array.isArray(parsed.quotations)) ||
@@ -67,34 +63,4 @@ export function loadWorkflowState(): WorkflowState {
 }
 export function saveWorkflowState(state: WorkflowState) {
   localStorage.setItem(storageKey, JSON.stringify(state))
-}
-
-/**
- * Loads the current local state and hydrates it from Supabase when
- * the migration has been applied. The UI remains usable if Supabase is not
- * configured or temporarily unavailable.
- */
-export async function loadWorkflowStateFromSupabase(): Promise<WorkflowState | null> {
-  if (!isSupabaseConfigured || !supabase || !firebaseAuth?.currentUser) return null
-  const { data, error } = await supabase
-    .from("workflow_snapshots")
-    .select("state")
-    .eq("id", "default")
-    .maybeSingle()
-  if (error) throw new Error(`Supabase load failed: ${error.message}`)
-  if (!data?.state) return null
-  return migrateState(validateWorkflowState(data.state as WorkflowState))
-}
-
-export async function saveWorkflowStateToSupabase(state: WorkflowState): Promise<void> {
-  const client = supabase
-  if (!isSupabaseConfigured || !client || !firebaseAuth?.currentUser) return
-  await saveQueue(async () => {
-    const { error } = await client.from("workflow_snapshots").upsert({
-      id: "default",
-      state,
-      updated_at: new Date().toISOString(),
-    })
-    if (error) throw new Error(`Supabase save failed: ${error.message}`)
-  })
 }

@@ -14,7 +14,7 @@ export default function Settings({ currentUser, onSignOut }: {
       <div>
         <span className="eyebrow">SETTINGS</span>
         <h1>Account settings</h1>
-        <p>Review your signed-in Google account and assigned system access.</p>
+        <p>Review your signed-in Google account and demo system access.</p>
       </div>
     </div>
 
@@ -29,12 +29,12 @@ export default function Settings({ currentUser, onSignOut }: {
         <span className="badge badge-available"><i />{currentUser.active ? "Active" : "Inactive"}</span>
       </div>
       <dl className="settings-details">
-        <div><dt>Assigned role</dt><dd><span className="type">{currentUser.role}</span></dd></div>
+        <div><dt>Demo role</dt><dd><span className="type">{currentUser.role}</span></dd></div>
         <div><dt>Account access</dt><dd>{currentUser.active ? "Enabled" : "Disabled"}</dd></div>
         <div><dt>Authentication</dt><dd>Google sign-in</dd></div>
       </dl>
       <div className="settings-actions">
-        <p>Role and access changes are controlled by an Administrator.</p>
+        <p>Demo role changes are saved in this browser and controlled by an Administrator.</p>
         <button className="btn btn-secondary" type="button" onClick={onSignOut}>Sign out</button>
       </div>
     </section>

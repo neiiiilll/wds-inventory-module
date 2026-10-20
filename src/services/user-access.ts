@@ -1,102 +1,80 @@
 import { firebaseAuth } from "./firebase"
-import { isSupabaseConfigured, supabase } from "./supabase"
 import {
   isAppRole,
+  isBootstrapAdministrator,
   type AppRole,
   type AppUser,
   type UserRoleHistoryEntry,
 } from "./access-control"
 
-type AppUserRow = {
-  firebase_uid: string
-  email: string
-  display_name: string
-  role: string
-  active: boolean
-  created_at: string
-  updated_at: string
-  last_login_at: string
+const usersStorageKey = "wds-inventory-demo-users-v1"
+const historyStorageKey = "wds-inventory-demo-role-history-v1"
+
+function requireFirebaseUser() {
+  const user = firebaseAuth?.currentUser
+  if (!user?.email) throw new Error("Firebase authentication is required.")
+  return user
 }
 
-type HistoryRow = {
-  id: string
-  target_uid: string
-  target_email: string
-  previous_role: string | null
-  new_role: string
-  previous_active: boolean | null
-  new_active: boolean
-  reason: string
-  actor_uid: string
-  actor_email: string
-  occurred_at: string
+function readUsers(): AppUser[] {
+  const parsed = JSON.parse(localStorage.getItem(usersStorageKey) ?? "[]") as AppUser[]
+  return Array.isArray(parsed)
+    ? parsed.filter(user => user && typeof user.firebaseUid === "string" && isAppRole(user.role))
+    : []
 }
 
-function requireAccessClient() {
-  if (!firebaseAuth?.currentUser) throw new Error("Firebase authentication is required.")
-  if (!isSupabaseConfigured || !supabase) throw new Error("Supabase is not configured.")
-  return supabase
+function writeUsers(users: AppUser[]) {
+  localStorage.setItem(usersStorageKey, JSON.stringify(users))
 }
 
-function mapAppUser(row: AppUserRow): AppUser {
-  if (!isAppRole(row.role)) throw new Error(`Unknown application role: ${row.role}`)
-  return {
-    firebaseUid: row.firebase_uid,
-    email: row.email,
-    displayName: row.display_name,
-    role: row.role,
-    active: row.active,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-    lastLoginAt: row.last_login_at,
-  }
+function readHistory(): UserRoleHistoryEntry[] {
+  const parsed = JSON.parse(localStorage.getItem(historyStorageKey) ?? "[]") as UserRoleHistoryEntry[]
+  return Array.isArray(parsed) ? parsed : []
 }
 
-function mapHistory(row: HistoryRow): UserRoleHistoryEntry {
-  if (!isAppRole(row.new_role) || (row.previous_role !== null && !isAppRole(row.previous_role)))
-    throw new Error("Role history contains an unknown application role.")
-  return {
-    id: row.id,
-    targetUid: row.target_uid,
-    targetEmail: row.target_email,
-    previousRole: row.previous_role,
-    newRole: row.new_role,
-    previousActive: row.previous_active,
-    newActive: row.new_active,
-    reason: row.reason,
-    actorUid: row.actor_uid,
-    actorEmail: row.actor_email,
-    occurredAt: row.occurred_at,
-  }
+function newHistoryId() {
+  return globalThis.crypto?.randomUUID?.() ?? `access-${Date.now()}`
 }
 
 export async function registerCurrentUser(): Promise<AppUser> {
-  const client = requireAccessClient()
-  const { data, error } = await client.rpc("register_current_app_user").single()
-  if (error) throw new Error(`Access registration failed: ${error.message}`)
-  return mapAppUser(data as AppUserRow)
+  const firebaseUser = requireFirebaseUser()
+  const now = new Date().toISOString()
+  const users = readUsers()
+  const existing = users.find(user => user.firebaseUid === firebaseUser.uid)
+  const next: AppUser = existing
+    ? {
+        ...existing,
+        email: firebaseUser.email!,
+        displayName: firebaseUser.displayName || firebaseUser.email!,
+        updatedAt: now,
+        lastLoginAt: now,
+      }
+    : {
+        firebaseUid: firebaseUser.uid,
+        email: firebaseUser.email!,
+        displayName: firebaseUser.displayName || firebaseUser.email!,
+        role: isBootstrapAdministrator(firebaseUser.email!) ? "Administrator" : "Viewer",
+        active: true,
+        createdAt: now,
+        updatedAt: now,
+        lastLoginAt: now,
+      }
+  writeUsers(existing
+    ? users.map(user => user.firebaseUid === next.firebaseUid ? next : user)
+    : [...users, next])
+  return next
 }
 
 export async function loadCurrentUser(): Promise<AppUser> {
-  const client = requireAccessClient()
-  const uid = firebaseAuth!.currentUser!.uid
-  const { data, error } = await client
-    .from("app_users")
-    .select("firebase_uid,email,display_name,role,active,created_at,updated_at,last_login_at")
-    .eq("firebase_uid", uid)
-    .single()
-  if (error) throw new Error(`Access lookup failed: ${error.message}`)
-  return mapAppUser(data as AppUserRow)
+  const firebaseUser = requireFirebaseUser()
+  const user = readUsers().find(candidate => candidate.firebaseUid === firebaseUser.uid)
+  if (!user) return registerCurrentUser()
+  return user
 }
 
 export async function listAppUsers(): Promise<AppUser[]> {
-  const client = requireAccessClient()
-  const { data, error } = await client
-    .from("app_users")
-    .select("firebase_uid,email,display_name,role,active,created_at,updated_at,last_login_at")
-    .order("display_name")
-  if (error) throw new Error(`User access list failed: ${error.message}`)
-  return (data as AppUserRow[]).map(mapAppUser)
+  requireFirebaseUser()
+  return readUsers().sort((left, right) => left.displayName.localeCompare(right.displayName))
 }
 
 export async function setAppUserAccess(input: {
@@ -105,24 +83,46 @@ export async function setAppUserAccess(input: {
   active: boolean
   reason: string
 }): Promise<AppUser> {
-  const client = requireAccessClient()
+  const firebaseUser = requireFirebaseUser()
   const reason = input.reason.trim()
   if (!reason) throw new Error("Change reason is required.")
-  const { data, error } = await client.rpc("set_app_user_access", {
-    target_uid: input.targetUid,
-    next_role: input.role,
-    next_active: input.active,
-    change_reason: reason,
-  }).single()
-  if (error) throw new Error(`Access update failed: ${error.message}`)
-  return mapAppUser(data as AppUserRow)
+  const users = readUsers()
+  const current = users.find(user => user.firebaseUid === firebaseUser.uid)
+  if (!current || current.role !== "Administrator" || !current.active)
+    throw new Error("Only an active Administrator can change demo access.")
+  if (input.targetUid === current.firebaseUid)
+    throw new Error("Another Administrator must change your access.")
+  const target = users.find(user => user.firebaseUid === input.targetUid)
+  if (!target) throw new Error("The selected demo user could not be found.")
+  const occurredAt = new Date().toISOString()
+  const updated: AppUser = {
+    ...target,
+    role: input.role,
+    active: input.active,
+    updatedAt: occurredAt,
+  }
+  writeUsers(users.map(user => user.firebaseUid === updated.firebaseUid ? updated : user))
+  const history = readHistory()
+  history.unshift({
+    id: newHistoryId(),
+    targetUid: updated.firebaseUid,
+    targetEmail: updated.email,
+    previousRole: target.role,
+    newRole: updated.role,
+    previousActive: target.active,
+    newActive: updated.active,
+    reason,
+    actorUid: current.firebaseUid,
+    actorEmail: current.email,
+    occurredAt,
+  })
+  localStorage.setItem(historyStorageKey, JSON.stringify(history))
+  window.dispatchEvent(new Event("wds-access-invalidated"))
+  return updated
 }
 
 export async function listUserRoleHistory(targetUid?: string): Promise<UserRoleHistoryEntry[]> {
-  const client = requireAccessClient()
-  let query = client.from("user_role_history").select("*").order("occurred_at", { ascending: false })
-  if (targetUid) query = query.eq("target_uid", targetUid)
-  const { data, error } = await query
-  if (error) throw new Error(`Role history load failed: ${error.message}`)
-  return (data as HistoryRow[]).map(mapHistory)
+  requireFirebaseUser()
+  const history = readHistory()
+  return targetUid ? history.filter(entry => entry.targetUid === targetUid) : history
 }
