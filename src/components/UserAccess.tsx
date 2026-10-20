@@ -7,7 +7,7 @@ const showDate = (value: string) => new Intl.DateTimeFormat("en-PH", {
   month: "short", day: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
 }).format(new Date(value))
 
-export default function UserAccess({ currentUser }: { currentUser: AppUser }) {
+export default function UserAccess({ currentUser, embedded = false }: { currentUser: AppUser; embedded?: boolean }) {
   const [users, setUsers] = useState<AppUser[]>([])
   const [history, setHistory] = useState<UserRoleHistoryEntry[]>([])
   const [editing, setEditing] = useState<AppUser | null>(null)
@@ -62,7 +62,9 @@ export default function UserAccess({ currentUser }: { currentUser: AppUser }) {
   }
 
   return <>
-    <div className="page-header"><div><span className="eyebrow">SETTINGS</span><h1>User Access</h1><p>Assign roles and control access for Google accounts registered with the system.</p></div><div className="page-actions"><WButton secondary onClick={() => void load()} disabled={loading}>Refresh</WButton></div></div>
+    {embedded
+      ? <div className="settings-section-heading"><div><span className="eyebrow">ADMINISTRATION</span><h2>User Access</h2><p>Assign roles and control access for Google accounts registered with the system.</p></div><WButton secondary onClick={() => void load()} disabled={loading}>Refresh</WButton></div>
+      : <div className="page-header"><div><span className="eyebrow">SETTINGS</span><h1>User Access</h1><p>Assign roles and control access for Google accounts registered with the system.</p></div><div className="page-actions"><WButton secondary onClick={() => void load()} disabled={loading}>Refresh</WButton></div></div>}
     {error && <div role="alert" className="workflow-note workflow-error">{error}</div>}
     <section className="panel user-access-panel">
       <div className="panel-head"><div><h2>Registered users</h2><p>New Google accounts receive Viewer access automatically.</p></div></div>
