@@ -21,7 +21,7 @@ export async function provisionCurrentUser(): Promise<AppUser> {
 
 export const loadCurrentUser = provisionCurrentUser
 
-// User administration is not part of the inventory callable surface.
+// User administration is not part of the inventory Edge API surface.
 export async function listAppUsers(): Promise<AppUser[]> { return [] }
 
 export async function setAppUserAccess(_input: {

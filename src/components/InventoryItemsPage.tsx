@@ -80,8 +80,8 @@ export default function InventoryItemsPage({ canEdit }: { canEdit: boolean }) {
       </div>
     </div>
 
-    <section className="panel callable-inventory">
-      <div className="filters callable-inventory-toolbar">
+    <section className="panel edge-inventory">
+      <div className="filters edge-inventory-toolbar">
         <label className="search-field">
           <span className="sr-only">Search inventory</span>
           <input
@@ -91,18 +91,18 @@ export default function InventoryItemsPage({ canEdit }: { canEdit: boolean }) {
             placeholder="Search item code or name"
           />
         </label>
-        {refreshing && <span className="callable-refreshing" role="status">Updating inventory…</span>}
+        {refreshing && <span className="edge-refreshing" role="status">Updating inventory…</span>}
       </div>
 
-      {errorMessage && <div className="callable-state callable-error" role="alert">
+      {errorMessage && <div className="edge-state edge-error" role="alert">
         <p>{errorMessage}</p>
         <button className="btn btn-secondary" type="button" onClick={() => void load()}>Retry</button>
       </div>}
 
       {loading && items.length === 0 ? (
-        <div className="callable-state" role="status">Loading inventory…</div>
+        <div className="edge-state" role="status">Loading inventory…</div>
       ) : items.length === 0 ? (
-        <div className="callable-state"><strong>No inventory items found</strong><p>Try a different search or refresh the list.</p></div>
+        <div className="edge-state"><strong>No inventory items found</strong><p>Try a different search or refresh the list.</p></div>
       ) : (
         <div className="table-wrap inventory-table">
           <table>

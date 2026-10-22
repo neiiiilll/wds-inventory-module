@@ -23,10 +23,10 @@ for (const contract of [
   "unitName",
   "quantity",
   "version",
-]) assert.ok(component.includes(contract), `Missing callable inventory UI contract: ${contract}`)
+]) assert.ok(component.includes(contract), `Missing Edge inventory UI contract: ${contract}`)
 
-assert.ok(app.includes("<InventoryItemsPage"), "The inventory route must render the callable-backed page.")
+assert.ok(app.includes("<InventoryItemsPage"), "The inventory route must render the Edge-backed page.")
 for (const forbidden of ["workflow-repository", "services/supabase", "isSupabaseConfigured", "loadRemoteWorkflow", "saveRemoteWorkflow"])
   assert.equal(app.includes(forbidden), false, `App must not retain direct backend contract: ${forbidden}`)
 
-console.log("Callable inventory page checks passed.")
+console.log("Edge inventory page checks passed.")

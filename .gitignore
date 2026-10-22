@@ -1,6 +1,9 @@
 node_modules/
 dist/
 build/
+.firebase/
+.superpowers/
+output/forms-qa/
 functions/lib/
 .cache/
 .env*
