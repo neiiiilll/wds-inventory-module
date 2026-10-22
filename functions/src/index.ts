@@ -14,6 +14,13 @@ import {
   createProvisionRepository,
   provisionInventoryAccessHandler,
 } from "./provision"
+import { createSupabaseAccessLookup } from "./access"
+import {
+  createInventoryRepository,
+  listInventoryItemsHandler,
+  updateInventoryItemHandler,
+} from "./inventory"
+import { getSupabaseAdmin } from "./supabase"
 
 if (getApps().length === 0) initializeApp()
 
@@ -29,6 +36,48 @@ export const provisionInventoryAccess = onCall(
       })
     } catch (error) {
       logger.error("Inventory provisioning failed", {
+        requestId,
+        uid: request.auth?.uid ?? null,
+        failureType: error instanceof Error ? error.name : "UnknownError",
+      })
+      throw toHttpsError(error, requestId)
+    }
+  },
+)
+
+function inventoryDependencies() {
+  const client = getSupabaseAdmin()
+  return {
+    accessLookup: createSupabaseAccessLookup(client),
+    repository: createInventoryRepository(client),
+  }
+}
+
+export const listInventoryItems = onCall(
+  { region: FUNCTION_REGION, secrets: [...SUPABASE_SECRETS] },
+  async (request) => {
+    const requestId = randomUUID()
+    try {
+      return await listInventoryItemsHandler(request, inventoryDependencies())
+    } catch (error) {
+      logger.error("Inventory item listing failed", {
+        requestId,
+        uid: request.auth?.uid ?? null,
+        failureType: error instanceof Error ? error.name : "UnknownError",
+      })
+      throw toHttpsError(error, requestId)
+    }
+  },
+)
+
+export const updateInventoryItem = onCall(
+  { region: FUNCTION_REGION, secrets: [...SUPABASE_SECRETS] },
+  async (request) => {
+    const requestId = randomUUID()
+    try {
+      return await updateInventoryItemHandler(request, inventoryDependencies())
+    } catch (error) {
+      logger.error("Inventory item update failed", {
         requestId,
         uid: request.auth?.uid ?? null,
         failureType: error instanceof Error ? error.name : "UnknownError",
