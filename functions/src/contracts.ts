@@ -68,13 +68,15 @@ export interface MaterialRequestDto {
   status: "draft"
 }
 
-export type StockMovementType =
-  | "receipt"
-  | "issue"
-  | "transfer"
-  | "adjustment"
-  | "return"
-  | "writeoff"
+export const STOCK_MOVEMENT_TYPES = [
+  "receipt",
+  "issue",
+  "transfer",
+  "adjustment",
+  "return",
+  "writeoff",
+] as const
+export type StockMovementType = (typeof STOCK_MOVEMENT_TYPES)[number]
 
 export interface StockMovementLineInput {
   lineNo: number

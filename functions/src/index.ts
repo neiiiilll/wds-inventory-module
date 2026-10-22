@@ -21,6 +21,11 @@ import {
   updateInventoryItemHandler,
 } from "./inventory"
 import { getSupabaseAdmin } from "./supabase"
+import {
+  createMaterialRequestHandler,
+  createWorkflowRepository,
+} from "./material-requests"
+import { postStockMovementHandler } from "./stock"
 
 if (getApps().length === 0) initializeApp()
 
@@ -53,6 +58,14 @@ function inventoryDependencies() {
   }
 }
 
+function workflowDependencies() {
+  const client = getSupabaseAdmin()
+  return {
+    accessLookup: createSupabaseAccessLookup(client),
+    repository: createWorkflowRepository(client),
+  }
+}
+
 export const listInventoryItems = onCall(
   { region: FUNCTION_REGION, secrets: [...SUPABASE_SECRETS] },
   async (request) => {
@@ -78,6 +91,40 @@ export const updateInventoryItem = onCall(
       return await updateInventoryItemHandler(request, inventoryDependencies())
     } catch (error) {
       logger.error("Inventory item update failed", {
+        requestId,
+        uid: request.auth?.uid ?? null,
+        failureType: error instanceof Error ? error.name : "UnknownError",
+      })
+      throw toHttpsError(error, requestId)
+    }
+  },
+)
+
+export const createMaterialRequest = onCall(
+  { region: FUNCTION_REGION, secrets: [...SUPABASE_SECRETS] },
+  async (request) => {
+    const requestId = randomUUID()
+    try {
+      return await createMaterialRequestHandler(request, workflowDependencies())
+    } catch (error) {
+      logger.error("Material request creation failed", {
+        requestId,
+        uid: request.auth?.uid ?? null,
+        failureType: error instanceof Error ? error.name : "UnknownError",
+      })
+      throw toHttpsError(error, requestId)
+    }
+  },
+)
+
+export const postStockMovement = onCall(
+  { region: FUNCTION_REGION, secrets: [...SUPABASE_SECRETS] },
+  async (request) => {
+    const requestId = randomUUID()
+    try {
+      return await postStockMovementHandler(request, workflowDependencies())
+    } catch (error) {
+      logger.error("Stock movement posting failed", {
         requestId,
         uid: request.auth?.uid ?? null,
         failureType: error instanceof Error ? error.name : "UnknownError",
