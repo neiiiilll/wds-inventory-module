@@ -5,6 +5,12 @@ const config = await readFile(new URL("../supabase/config.toml", import.meta.url
 assert.match(config, /\[functions\.inventory-api\]/)
 assert.match(config, /verify_jwt\s*=\s*false/)
 
+const functionDenoConfig = JSON.parse(
+  await readFile(new URL("../supabase/functions/inventory-api/deno.json", import.meta.url), "utf8"),
+)
+assert.equal(functionDenoConfig.imports["@supabase/supabase-js"], "npm:@supabase/supabase-js@2.117.3")
+assert.equal(functionDenoConfig.imports.jose, "npm:jose@6.1.0")
+
 const sharedUrl = new URL("../supabase/functions/_shared/", import.meta.url)
 const functionUrl = new URL("../supabase/functions/inventory-api/", import.meta.url)
 const sources = []
