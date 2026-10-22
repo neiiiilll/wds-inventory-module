@@ -42,6 +42,8 @@ firebase emulators:exec --only auth,functions "npm --prefix functions test"
 
 The Firebase project is `apps-workspace-b61a9`; Hosting target `app` maps to site `app-invb61a9`. Set secrets without echoing their values:
 
+Firebase Cloud Functions 2nd gen and Secret Manager require the project to be on the Blaze plan. Upgrade billing before setting secrets or deploying Functions; do not work around this requirement by placing the Supabase service-role key in Hosting or browser configuration.
+
 ```sh
 firebase functions:secrets:set SUPABASE_URL --project apps-workspace-b61a9
 firebase functions:secrets:set SUPABASE_SERVICE_ROLE_KEY --project apps-workspace-b61a9

@@ -15,6 +15,7 @@ for (const contract of [
   "supabase test db",
   "firebase functions:secrets:set SUPABASE_URL",
   "firebase functions:secrets:set SUPABASE_SERVICE_ROLE_KEY",
+  "Blaze",
   "INVENTORY_BOOTSTRAP_TENANT_KEY",
   "non-production",
   "firebase emulators:start --only auth,functions,hosting",
