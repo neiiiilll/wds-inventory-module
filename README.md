@@ -1,8 +1,8 @@
 # WDS Inventory
 
-React 19 + Vite inventory UI with Firebase Authentication and Firebase callable Cloud Functions. The functions revalidate every Firebase user, tenant membership, inventory role, and active status in a shared Supabase Postgres database before using the service role for a tenant-scoped operation.
+React 19 + Vite inventory UI with Firebase Authentication and a Supabase Edge Function backend. The Edge API verifies every Firebase ID token, derives the caller's tenant from the shared Supabase membership model, revalidates the inventory role and active status, then uses the server-only service role for a tenant-scoped operation.
 
-The browser never receives Supabase credentials and never chooses its tenant. `tenant_key` is a Firebase custom claim set by the Admin SDK; it is only a hint until the callable verifies the matching active Supabase membership.
+The browser receives only the public Supabase URL and publishable key. It never receives the service role and never chooses its tenant, actor, or role. The backend does not depend on a Firebase `tenant_key` custom claim.
 
 ## Local development
 
@@ -10,69 +10,62 @@ Use Node.js 22. The Vite development server is normally already available on por
 
 ```sh
 npm install
-npm --prefix functions install
+npm --prefix supabase/functions install
 npm test
-npm --prefix functions test
+npm run test:edge
 npx tsc --noEmit
 npm run build
-npm --prefix functions run build
 ```
 
-Create `.env.local` from `.env.example` with the Firebase web configuration. Keep `VITE_FIREBASE_FUNCTIONS_REGION=asia-southeast1`; it must match the server region in `functions/src/config.ts`.
+Create `.env.local` from `.env.example` with the Firebase web configuration, public Supabase URL, and public publishable key. Never place a service-role key in a `VITE_*` value.
 
-For local Functions emulation, use placeholder/value files ignored by Git as described in [supabase/README.md](supabase/README.md). Then run:
-
-```sh
-firebase emulators:start --only auth,functions,hosting
-```
-
-To execute the Functions unit suite while the emulators are running:
+For local Edge execution, create an ignored environment file with the non-browser settings described in [supabase/README.md](supabase/README.md), start the local Supabase stack, then run:
 
 ```sh
-firebase emulators:exec --only auth,functions "npm --prefix functions test"
+supabase start
+supabase functions serve inventory-api --no-verify-jwt --env-file supabase/functions/.env.local
 ```
 
 ## First-login provisioning
 
-`provisionInventoryAccess` validates the Firebase identity against `app_users`, the single active `tenant_memberships` row, the active tenant, and an inventory `membership_roles` assignment. If the database assignment is valid, it preserves existing Firebase custom claims, sets `tenant_key`, and tells React to force-refresh the ID token with `getIdToken(true)`.
+`provisionInventoryAccess` validates the verified Firebase identity against `app_users`, the single active `tenant_memberships` row, the active tenant, and an inventory `membership_roles` assignment. Tenant context is always derived from the database; no custom claim is read or written.
 
 `INVENTORY_BOOTSTRAP_TENANT_KEY` enables idempotent Viewer provisioning into the named test tenant. It is a non-production convenience only. Leave it empty in production and provision `app_users`, membership, and inventory roles through a trusted administrative process.
 
 ## Deployment
 
-The Firebase project is `apps-workspace-b61a9`; Hosting target `app` maps to site `app-invb61a9`. Set secrets without echoing their values:
-
-Firebase Cloud Functions 2nd gen and Secret Manager require the project to be on the Blaze plan. Upgrade billing before setting secrets or deploying Functions; do not work around this requirement by placing the Supabase service-role key in Hosting or browser configuration.
+The Supabase project reference is `tehynsbnasihzktzvyzy`. Firebase project `apps-workspace-b61a9` remains on its current plan and serves only Hosting target `app`, mapped to site `app-invb61a9`. Configure the Edge runtime without echoing credential values:
 
 ```sh
-firebase functions:secrets:set SUPABASE_URL --project apps-workspace-b61a9
-firebase functions:secrets:set SUPABASE_SERVICE_ROLE_KEY --project apps-workspace-b61a9
+npx supabase secrets set FIREBASE_PROJECT_ID=apps-workspace-b61a9 --project-ref tehynsbnasihzktzvyzy
+npx supabase secrets set INVENTORY_BOOTSTRAP_TENANT_KEY=inventory-test --project-ref tehynsbnasihzktzvyzy
+npx supabase secrets set INVENTORY_ALLOWED_ORIGINS=https://app-invb61a9.web.app,https://app-invb61a9.firebaseapp.com --project-ref tehynsbnasihzktzvyzy
 ```
 
-Apply and verify the inventory migrations first. Deploy Functions before Hosting so the new browser cannot call missing endpoints:
+Supabase automatically provides `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` to the Edge runtime. Apply and verify migrations first. Deploy Edge before Hosting so the browser never calls a missing endpoint:
 
 ```sh
-supabase db push
-supabase test db
-firebase deploy --project apps-workspace-b61a9 --only functions
+npx supabase db push
+npx supabase test db
+npx supabase functions deploy inventory-api --project-ref tehynsbnasihzktzvyzy --no-verify-jwt
 firebase deploy --project apps-workspace-b61a9 --only hosting:app
 ```
 
-After deployment, smoke-test sign-in, claim refresh, the inventory list, a version-checked update, and an idempotent stock-post retry. Also use a second tenant fixture to confirm cross-tenant IDs return a generic denial/not-found response without revealing record existence.
+After deployment, smoke-test sign-in, first-login provisioning, the inventory list, a version-checked update, and an idempotent stock-post retry. Also use a second tenant fixture to confirm cross-tenant IDs return a generic denial/not-found response without revealing record existence.
 
-Rollback database behavior with a new forward migration; never delete or rewrite migration history already applied to the shared project. Roll back Functions before Hosting only when the older UI is compatible with the older callable contract.
+Rollback database behavior with a new forward migration; never delete or rewrite migration history already applied to the shared project. Roll back Hosting before the Edge function only when the older UI is compatible with the older API contract.
 
 ## Security checklist
 
 - No `SUPABASE_SERVICE_ROLE_KEY`, Firebase private key, database password, or real token is in React, Vite variables, source, logs, or Git.
-- Every callable requires `request.auth.uid`, ignores client tenant/actor fields, and rechecks the active user, the one active membership, tenant claim match, active application, and allowed inventory role.
+- Every Edge action verifies the Firebase ID token, ignores client tenant/actor fields, and rechecks the active user, one active membership, active tenant/application, and allowed inventory role.
 - Inventory queries and RPCs always receive the authorized `tenant_id`; child references are tenant-bound by composite foreign keys.
 - RLS is enabled with no policies on every `inv_*` table. The service role bypasses RLS, so function-code tenant and role validation remains mandatory.
 - RPC execution is revoked from `public`, `anon`, and `authenticated` and granted only to `service_role`.
 - Stock posts use bounded idempotency keys and one atomic RPC; item updates require the expected version.
 - Error responses hide SQL details and cross-tenant record existence; logs contain request IDs and failure types, not secrets.
-- `INVENTORY_BOOTSTRAP_TENANT_KEY` is empty in production.
-- Firebase client and server both use `asia-southeast1`.
+- `INVENTORY_BOOTSTRAP_TENANT_KEY` is empty in production unless open viewer enrollment into the test tenant is intentional.
+- `INVENTORY_ALLOWED_ORIGINS` contains only the deployed Hosting origins.
 
 ## Important paths
 
@@ -80,9 +73,9 @@ Rollback database behavior with a new forward migration; never delete or rewrite
 | --- | --- |
 | `supabase/migrations/` | Ordered shared prerequisites, inventory schema, integrity/RLS, and RPC migrations |
 | `supabase/tests/inventory_rpcs_test.sql` | pgTAP transaction and tenant-boundary checks |
-| `functions/src/access.ts` | Per-call Firebase/Supabase access revalidation |
-| `functions/src/index.ts` | Regional callable exports |
-| `src/services/inventory-api.ts` | Typed React callable wrappers and safe errors |
-| `src/components/InventoryItemsPage.tsx` | Callable-backed inventory catalog |
+| `supabase/functions/inventory-api/index.ts` | Edge runtime wiring and server-only service-role client |
+| `supabase/functions/_shared/access.ts` | Per-request Firebase/Supabase access revalidation |
+| `src/services/inventory-api.ts` | Typed React Edge API wrappers |
+| `src/components/InventoryItemsPage.tsx` | Edge-backed inventory catalog |
 
 The remaining procurement screens retain local prototype workflow state; the Inventory List route is connected to the multitenant backend.

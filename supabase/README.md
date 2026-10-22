@@ -38,28 +38,30 @@ supabase test db
 
 Never paste the original introspection dump into SQL Editor. Never repair a deployed change by dropping shared objects or editing applied migration files. Create a new forward migration and coordinate any shared-table change.
 
-## Firebase Functions configuration
+## Supabase Edge Function configuration
 
-Production secrets are Firebase Secret Manager values:
-
-```sh
-firebase functions:secrets:set SUPABASE_URL --project apps-workspace-b61a9
-firebase functions:secrets:set SUPABASE_SERVICE_ROLE_KEY --project apps-workspace-b61a9
-```
-
-For emulation, copy `functions/.env.example` to an ignored local configuration file. Firebase secret parameters can be overridden in `functions/.secret.local`; do not commit that file. Use the local Supabase API URL and local service-role value only. Keep `INVENTORY_BOOTSTRAP_TENANT_KEY=inventory-test` only for a non-production test tenant; leave it empty for production deployment.
-
-Client and server region must match `asia-southeast1`. Start all relevant emulators together:
+The Edge runtime receives `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` from Supabase automatically. Configure only the Firebase project identifier, bootstrap tenant, and allowed browser origins:
 
 ```sh
-firebase emulators:start --only auth,functions,hosting
+npx supabase secrets set FIREBASE_PROJECT_ID=apps-workspace-b61a9 --project-ref tehynsbnasihzktzvyzy
+npx supabase secrets set INVENTORY_BOOTSTRAP_TENANT_KEY=inventory-test --project-ref tehynsbnasihzktzvyzy
+npx supabase secrets set INVENTORY_ALLOWED_ORIGINS=https://app-invb61a9.web.app,https://app-invb61a9.firebaseapp.com --project-ref tehynsbnasihzktzvyzy
 ```
 
-Test first login twice to confirm provisioning is idempotent, the `tenant_key` custom claim is set, and React refreshes the token. Then suspend the membership and confirm the very next callable is denied. Repeat with a valid ID from another tenant and confirm the response does not disclose its existence.
+For local execution, create ignored `supabase/functions/.env.local` values and run `supabase functions serve inventory-api --no-verify-jwt --env-file supabase/functions/.env.local`. Keep `INVENTORY_BOOTSTRAP_TENANT_KEY=inventory-test` only for a non-production test tenant; leave it empty for production deployment.
+
+The gateway JWT check is disabled because the bearer token is a Firebase ID token. The handler itself verifies its RS256 signature, issuer, audience, lifetime, and UID before routing an action. Deploy Edge before Hosting:
+
+```sh
+npx supabase functions deploy inventory-api --project-ref tehynsbnasihzktzvyzy --no-verify-jwt
+firebase deploy --project apps-workspace-b61a9 --only hosting:app
+```
+
+Test first login twice to confirm provisioning is idempotent and membership-derived. Then suspend the membership and confirm the next Edge request is denied. Repeat with a valid ID from another tenant and confirm the response does not disclose its existence.
 
 ## RLS and service-role boundary
 
-Every `inv_*` table has RLS enabled and intentionally has no policies, so browser/anonymous/authenticated access is deny-all. The service role bypasses RLS. Therefore every callable must verify access and add the authorized tenant filter even though RLS is enabled; RLS is defense against accidental direct clients, not the authorization boundary for service-role code.
+Every `inv_*` table has RLS enabled and intentionally has no policies, so browser/anonymous/authenticated access is deny-all. The service role bypasses RLS. Therefore every Edge action must verify access and add the authorized tenant filter even though RLS is enabled; RLS is defense against accidental direct clients, not the authorization boundary for service-role code.
 
 The transaction RPCs are executable only by `service_role`. `inv_next_document_number` locks the counter through `INSERT ... ON CONFLICT DO UPDATE`; `inv_post_stock_movement` validates all tenant-owned references and updates movement rows, balances, versions, and audit records in one database transaction.
 

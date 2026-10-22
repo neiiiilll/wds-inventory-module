@@ -1,7 +1,4 @@
 {
-  "functions": {
-    "source": "functions"
-  },
   "hosting": {
     "target": "app",
     "public": "dist",
@@ -20,9 +17,6 @@
   "emulators": {
     "auth": {
       "port": 9099
-    },
-    "functions": {
-      "port": 5001
     },
     "hosting": {
       "port": 5000

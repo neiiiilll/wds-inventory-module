@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "test": "node scripts/report-period.test.mjs && node scripts/workflow.test.mjs && node scripts/client-forms.test.mjs && node scripts/procurement.test.mjs && node scripts/date-input.test.mjs && node scripts/request-controls.test.mjs && node scripts/procurement-completion.test.mjs && node scripts/workflow-storage.test.mjs && node scripts/material-charges-ui.test.mjs && node scripts/site-config.test.mjs && node scripts/deployment-docs.test.mjs && node scripts/user-display.test.mjs && node scripts/access-control.test.mjs && node scripts/inventory-migrations.test.mjs && node scripts/edge-functions.test.mjs && node scripts/access-gate.test.mjs && node scripts/callable-client.test.mjs && node scripts/inventory-items-ui.test.mjs && node scripts/settings-page.test.mjs",
+    "test:edge": "npm --prefix supabase/functions test",
     "build": "vite build",
+    "deploy:edge": "npx supabase functions deploy inventory-api --project-ref tehynsbnasihzktzvyzy --no-verify-jwt",
     "deploy:hosting": "npm run build && firebase deploy --project apps-workspace-b61a9 --only hosting:app",
     "preview": "vite preview",
     "format": "oxfmt"
