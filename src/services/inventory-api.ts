@@ -1,9 +1,11 @@
-import { httpsCallable } from "firebase/functions"
+import { firebaseAuth } from "./firebase"
+import { InventoryApiError, invokeInventoryEdge } from "./inventory-http"
 
-import { firebaseFunctions } from "./firebase"
+export { InventoryApiError } from "./inventory-http"
+export type { InventoryApiErrorCode } from "./inventory-http"
 
 export type InventoryRoleKey = "administrator" | "inventory_staff" | "viewer"
-export interface ProvisionAccessResponse { status: "active" | "disabled"; firebaseUid: string; email: string; displayName: string; tenantKey: string | null; roleKey: InventoryRoleKey | null; refreshToken: boolean }
+export interface ProvisionAccessResponse { status: "active" | "disabled"; firebaseUid: string; email: string; displayName: string; tenantKey: string | null; roleKey: InventoryRoleKey | null }
 export interface InventoryItemDto { id: string; itemCode: string; name: string; description: string | null; categoryId: string; categoryName: string; unitId: string; unitName: string; unitSymbol: string | null; supplierId: string | null; minimumQuantity: number; quantity: number; active: boolean; version: number }
 export interface ListItemsInput { search?: string; limit?: number; cursor?: string }
 export interface ListItemsResponse { items: InventoryItemDto[]; nextCursor: string | null }
@@ -15,36 +17,16 @@ export interface StockMovementLineInput { lineNo: number; itemId: string; locati
 export interface PostStockMovementInput { movementType: "receipt" | "issue" | "transfer" | "adjustment" | "return" | "writeoff"; sourceType?: string; sourceReference?: string; idempotencyKey: string; notes?: string; lines: StockMovementLineInput[] }
 export interface PostStockMovementResponse { movementId: string; postedAt: string; replayed: boolean }
 
-export type InventoryApiErrorCode = "unauthenticated" | "permission-denied" | "invalid-argument" | "not-found" | "already-exists" | "failed-precondition" | "aborted" | "internal"
-const SAFE_MESSAGES: Record<InventoryApiErrorCode, string> = {
-  unauthenticated: "Sign in again to continue.",
-  "permission-denied": "You do not have permission to perform this action.",
-  "invalid-argument": "Check the entered information and try again.",
-  "not-found": "The requested inventory record was not found.",
-  "already-exists": "That inventory record already exists.",
-  "failed-precondition": "The inventory operation cannot be completed in its current state.",
-  aborted: "This record changed. Refresh it and try again.",
-  internal: "The inventory service could not complete the request. Try again.",
-}
-
-export class InventoryApiError extends Error {
-  constructor(readonly code: InventoryApiErrorCode, message = SAFE_MESSAGES[code]) { super(message); this.name = "InventoryApiError" }
-}
-
-function normalizeError(error: unknown): InventoryApiError {
-  const rawCode = typeof error === "object" && error && "code" in error ? String((error as { code: unknown }).code).replace(/^functions\//, "") : "internal"
-  const code = rawCode in SAFE_MESSAGES ? rawCode as InventoryApiErrorCode : "internal"
-  return new InventoryApiError(code)
-}
-
 export async function callInventoryFunction<I, O>(name: string, input: I): Promise<O> {
-  if (!firebaseFunctions) throw new InventoryApiError("internal", "Firebase is not configured.")
-  try {
-    return (await httpsCallable<I, O>(firebaseFunctions, name)(input)).data
-  } catch (error) {
-    if (error instanceof InventoryApiError) throw error
-    throw normalizeError(error)
-  }
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, "")
+  const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+  const user = firebaseAuth?.currentUser
+  if (!user) throw new InventoryApiError("unauthenticated")
+  return invokeInventoryEdge<I, O>({
+    endpoint: supabaseUrl ? `${supabaseUrl}/functions/v1/inventory-api` : "",
+    publishableKey: publishableKey ?? "",
+    getIdToken: () => user.getIdToken(),
+  }, name, input)
 }
 
 export const provisionInventoryAccess = () => callInventoryFunction<Record<string, never>, ProvisionAccessResponse>("provisionInventoryAccess", {})

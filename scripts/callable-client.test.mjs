@@ -6,15 +6,15 @@ const api = await readFile(new URL("../src/services/inventory-api.ts", import.me
   if (error?.code === "ENOENT") return ""
   throw error
 })
+const transport = await readFile(new URL("../src/services/inventory-http.ts", import.meta.url), "utf8")
+const client = `${api}\n${transport}`
 const env = await readFile(new URL("../.env.example", import.meta.url), "utf8")
 
-assert.ok(firebase.includes('from "firebase/functions"'), "Firebase Functions SDK must be initialized in the shared client.")
-assert.ok(firebase.includes("getFunctions(firebaseApp"), "Functions must use the configured Firebase app.")
-assert.ok(firebase.includes('"asia-southeast1"'), "Functions must default to the deployed region.")
-assert.ok(firebase.includes("firebaseFunctions"), "The regional Functions client must be exported.")
+assert.equal(firebase.includes('from "firebase/functions"'), false, "The browser must not initialize Firebase Functions.")
+assert.equal(firebase.includes("getFunctions"), false, "Firebase remains authentication-only in the browser.")
 
 for (const contract of [
-  "httpsCallable",
+  "invokeInventoryEdge",
   "callInventoryFunction",
   "provisionInventoryAccess",
   "listInventoryItems",
@@ -25,12 +25,16 @@ for (const contract of [
   "permission-denied",
   "aborted",
   "internal",
-]) assert.ok(api.includes(contract), `Missing callable client contract: ${contract}`)
+  "VITE_SUPABASE_URL",
+  "VITE_SUPABASE_PUBLISHABLE_KEY",
+  "getIdToken",
+]) assert.ok(client.includes(contract), `Missing Edge client contract: ${contract}`)
 
-assert.equal(api.includes("details"), false, "Callable error details must not reach the UI.")
-assert.equal(api.includes("tenantId"), false, "The browser must never submit a tenant ID.")
-assert.equal(api.includes("@supabase/supabase-js"), false, "The browser callable client must not import Supabase.")
-assert.ok(env.includes("VITE_FIREBASE_FUNCTIONS_REGION=asia-southeast1"), "The Functions region must be documented.")
-assert.equal(env.includes("VITE_SUPABASE_"), false, "Supabase credentials must not be exposed to Vite.")
+assert.equal(client.includes("details"), false, "Edge error details must not reach the UI.")
+assert.equal(client.includes("tenantId"), false, "The browser must never submit a tenant ID.")
+assert.equal(client.includes("@supabase/supabase-js"), false, "The browser client must not import Supabase.")
+assert.ok(env.includes("VITE_SUPABASE_URL="), "The public Supabase URL must be documented.")
+assert.ok(env.includes("VITE_SUPABASE_PUBLISHABLE_KEY="), "The public Supabase key must be documented.")
+assert.equal(env.includes("SERVICE_ROLE"), false, "The service-role key must never be exposed to Vite.")
 
-console.log("Firebase callable client checks passed.")
+console.log("Firebase-authenticated Edge client checks passed.")
