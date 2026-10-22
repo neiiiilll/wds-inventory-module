@@ -52,6 +52,7 @@ for (const table of sharedTables) {
 }
 
 for (const [indexName, table, columns] of [
+  ["app_roles_app_key_role_key_uidx", "app_roles", "app_key, role_key"],
   ["tenant_memberships_tenant_id_id_uidx", "tenant_memberships", "tenant_id, id"],
   ["departments_tenant_id_id_uidx", "departments", "tenant_id, id"],
   ["personnel_tenant_id_id_uidx", "personnel", "tenant_id, id"],
@@ -155,6 +156,9 @@ assert.match(integrity, /alter table public\.%I enable row level security/i)
 assert.match(integrity, /revoke all on table public\.%I from anon, authenticated/i)
 assert.doesNotMatch(integrity, /create\s+policy/i)
 assert.match(integrity, /create index if not exists inv_stock_movement_lines_tenant_item_idx/i)
+assert.match(integrity, /column_name in \('tenant_id', 'id'\)/i)
+assert.match(integrity, /inventory_parent \|\| '_tenant_id_id_uidx'/i)
+assert.match(integrity, /create unique index if not exists %I on public\.%I \(tenant_id, id\)/i)
 
 for (const signature of [
   /inv_next_document_number\s*\(\s*p_tenant_id uuid,\s*p_document_type text,\s*p_document_date date default current_date\s*\)\s*returns text/is,

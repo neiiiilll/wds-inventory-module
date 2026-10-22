@@ -80,13 +80,13 @@ export async function postStockMovementHandler(
   request: CallableRequest<PostStockMovementInput>,
   dependencies: WorkflowDependencies,
 ): Promise<PostStockMovementResponse> {
-  const input = normalizeInput(request.data)
   const access = await requireAccess(
     request,
     "inventory",
     ["administrator", "inventory_staff"],
     dependencies.accessLookup,
   )
+  const input = normalizeInput(request.data)
   return dependencies.repository.postStockMovement({
     p_tenant_id: access.tenantId,
     p_actor_user_id: access.userId,

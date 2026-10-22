@@ -160,13 +160,13 @@ export async function createMaterialRequestHandler(
   request: CallableRequest<CreateMaterialRequestInput>,
   dependencies: WorkflowDependencies,
 ): Promise<MaterialRequestDto> {
-  const input = normalizeInput(request.data)
   const access = await requireAccess(
     request,
     "inventory",
     ["administrator", "inventory_staff"],
     dependencies.accessLookup,
   )
+  const input = normalizeInput(request.data)
   return dependencies.repository.createMaterialRequest({
     p_tenant_id: access.tenantId,
     p_actor_user_id: access.userId,

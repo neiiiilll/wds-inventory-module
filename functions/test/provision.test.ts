@@ -113,6 +113,18 @@ test("returns a disabled state without reactivating an inactive user", async () 
   assert.deepEqual(calls.claims, [])
 })
 
+test("does not reactivate a suspended or removed membership", async () => {
+  for (const membershipStatus of ["suspended", "removed"]) {
+    const { deps, calls } = dependencies({ existing: { ...activeRecord, membershipStatus } })
+    await assert.rejects(
+      provisionInventoryAccessHandler(callable(), deps),
+      (error: { code?: string }) => error.code === "permission-denied",
+    )
+    assert.deepEqual(calls.identities, [])
+    assert.deepEqual(calls.claims, [])
+  }
+})
+
 test("denies a new user when test bootstrap is disabled", async () => {
   const { deps } = dependencies({ existing: null, bootstrapTenantKey: "" })
   await assert.rejects(
@@ -139,6 +151,24 @@ test("idempotently provisions only viewer access in the configured test tenant",
 
 test("a retry completes a partial membership using its existing tenant", async () => {
   const partial = { ...activeRecord, roleKeys: [] }
+  const { deps, calls } = dependencies({ existing: partial })
+  const response = await provisionInventoryAccessHandler(callable(), deps)
+
+  assert.equal(response.roleKey, "viewer")
+  assert.deepEqual(calls.tenantKeys, ["inventory-test"])
+})
+
+test("a retry can complete a bootstrap user created before its membership", async () => {
+  const partial = {
+    ...activeRecord,
+    membershipCount: 0,
+    membershipId: null,
+    membershipStatus: null,
+    tenantId: null,
+    tenantKey: null,
+    tenantActive: false,
+    roleKeys: [],
+  }
   const { deps, calls } = dependencies({ existing: partial })
   const response = await provisionInventoryAccessHandler(callable(), deps)
 

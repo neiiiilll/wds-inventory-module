@@ -96,6 +96,14 @@ test("list input rejects a client-selected tenant", async () => {
   )
 })
 
+test("authentication is checked before inventory payload validation", async () => {
+  const { deps } = dependencies("viewer")
+  await assert.rejects(
+    listInventoryItemsHandler({ data: { tenantId: "other" } } as CallableRequest<never>, deps),
+    (error: { code?: string }) => error.code === "unauthenticated",
+  )
+})
+
 test("viewer cannot update inventory", async () => {
   const { deps, calls } = dependencies("viewer")
   await assert.rejects(

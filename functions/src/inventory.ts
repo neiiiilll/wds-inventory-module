@@ -301,13 +301,13 @@ export async function listInventoryItemsHandler(
   request: CallableRequest<ListItemsInput>,
   dependencies: InventoryDependencies,
 ): Promise<ListItemsResponse> {
-  const input = normalizeListInput(request.data)
   const access = await requireAccess(
     request,
     "inventory",
     ["administrator", "inventory_staff", "viewer"],
     dependencies.accessLookup,
   )
+  const input = normalizeListInput(request.data)
   return dependencies.repository.list(access.tenantId, input)
 }
 
@@ -315,13 +315,13 @@ export async function updateInventoryItemHandler(
   request: CallableRequest<UpdateItemInput>,
   dependencies: InventoryDependencies,
 ): Promise<InventoryItemDto> {
-  const input = normalizeUpdateInput(request.data)
   const access = await requireAccess(
     request,
     "inventory",
     ["administrator", "inventory_staff"],
     dependencies.accessLookup,
   )
+  const input = normalizeUpdateInput(request.data)
   const updated = await dependencies.repository.update(
     access.tenantId,
     input.id,

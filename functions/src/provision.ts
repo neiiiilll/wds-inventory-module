@@ -189,13 +189,7 @@ export function createProvisionRepository(
           .single()
         membership = assertResult(insertResult.data as MembershipRow | null, insertResult.error)
       } else if (membership.status !== "active") {
-        const updateResult = await client
-          .from("tenant_memberships")
-          .update({ status: "active", updated_at: new Date().toISOString() })
-          .eq("id", membership.id)
-          .select("id, tenant_id, status")
-          .single()
-        membership = assertResult(updateResult.data as MembershipRow | null, updateResult.error)
+        throw new HttpsError("permission-denied", "Inventory access is not permitted.")
       }
 
       const roleResult = await client
@@ -273,12 +267,10 @@ export async function provisionInventoryAccessHandler(
   let roleKey = record ? roleFrom(record) : null
 
   if (!membershipUsable || !roleKey) {
-    const existingTrustedTenant = record?.membershipCount === 1 && record.tenantKey
-      ? record.tenantKey
-      : ""
     const bootstrapTenant = deps.bootstrapTenantKey.trim()
-    const targetTenant = membershipUsable ? record!.tenantKey! : bootstrapTenant
-    if (!targetTenant || (!membershipUsable && existingTrustedTenant && existingTrustedTenant !== bootstrapTenant)) denied()
+    if (record?.membershipCount === 1 && !membershipUsable) denied()
+    const targetTenant = record?.tenantKey ?? bootstrapTenant
+    if (!targetTenant) denied()
     record = await deps.repository.ensureViewer(identity, targetTenant)
     roleKey = roleFrom(record)
   }

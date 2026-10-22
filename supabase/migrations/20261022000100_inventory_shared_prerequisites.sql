@@ -53,21 +53,11 @@ begin
     end if;
   end loop;
 
-  if not exists (
-    select 1
-    from pg_index i
-    join pg_class t on t.oid = i.indrelid
-    join pg_namespace n on n.oid = t.relnamespace
-    where n.nspname = 'public'
-      and t.relname = 'app_roles'
-      and i.indisunique
-      and pg_get_indexdef(i.indexrelid) ~ '\(app_key, role_key\)'
-  ) then
-    raise exception 'Inventory prerequisite requires UNIQUE (app_key, role_key) on public.app_roles';
-  end if;
 end
 $$;
 
+create unique index if not exists app_roles_app_key_role_key_uidx
+  on public.app_roles (app_key, role_key);
 create unique index if not exists tenant_memberships_tenant_id_id_uidx
   on public.tenant_memberships (tenant_id, id);
 create unique index if not exists departments_tenant_id_id_uidx

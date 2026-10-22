@@ -29,6 +29,36 @@ create index if not exists inv_requisition_issue_slips_tenant_status_idx
 create index if not exists inv_stock_counts_tenant_status_idx
   on public.inv_stock_counts (tenant_id, status, count_date desc);
 
+-- CREATE TABLE IF NOT EXISTS does not add constraints to pre-existing tables.
+-- Ensure every inventory parent with both columns can support tenant-bound child FKs.
+do $$
+declare
+  inventory_parent text;
+begin
+  for inventory_parent in
+    select t.table_name
+    from information_schema.tables t
+    where t.table_schema = 'public'
+      and t.table_name like 'inv\_%' escape '\'
+      and t.table_type = 'BASE TABLE'
+      and 2 = (
+        select count(*)
+        from information_schema.columns c
+        where c.table_schema = t.table_schema
+          and c.table_name = t.table_name
+          and c.column_name in ('tenant_id', 'id')
+      )
+    order by t.table_name
+  loop
+    execute format(
+      'create unique index if not exists %I on public.%I (tenant_id, id)',
+      inventory_parent || '_tenant_id_id_uidx',
+      inventory_parent
+    );
+  end loop;
+end
+$$;
+
 create or replace function public.inv_set_updated_at()
 returns trigger
 language plpgsql
