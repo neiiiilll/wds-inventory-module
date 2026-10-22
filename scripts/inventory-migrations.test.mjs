@@ -7,6 +7,8 @@ const migrationNames = (await readdir(migrationsUrl))
   .sort()
 
 assert.deepEqual(migrationNames, [
+  "20261014000000_inventory_schema.sql",
+  "20261019000000_role_based_access.sql",
   "20261022000100_inventory_shared_prerequisites.sql",
   "20261022000200_inventory_catalog_stock.sql",
   "20261022000300_inventory_workflows.sql",
@@ -14,9 +16,12 @@ assert.deepEqual(migrationNames, [
   "20261022000500_inventory_rpcs.sql",
 ])
 
-const [prerequisites, catalog, workflows, integrity, rpcs] = await Promise.all(
+const [legacySchema, legacyAccess, prerequisites, catalog, workflows, integrity, rpcs] = await Promise.all(
   migrationNames.map((name) => readFile(new URL(name, migrationsUrl), "utf8")),
 )
+assert.match(legacySchema, /Historical migration marker/)
+assert.match(legacyAccess, /Historical migration marker/)
+assert.doesNotMatch(`${legacySchema}\n${legacyAccess}`, /create\s+table|alter\s+table|drop\s+table/i)
 const allInventorySql = `${prerequisites}\n${catalog}\n${workflows}\n${integrity}\n${rpcs}`
 
 assert.doesNotMatch(allInventorySql, /\bsvc_[a-z0-9_]+\b/i)
@@ -44,10 +49,10 @@ for (const table of sharedTables) {
     new RegExp(`'${table}'`, "i"),
     `Shared prerequisite ${table} must be included in the catalog-check list.`,
   )
-  assert.doesNotMatch(
+  assert.match(
     prerequisites,
-    new RegExp(`create\\s+table(?:\\s+if\\s+not\\s+exists)?\\s+public\\.${table}\\b`, "i"),
-    `Shared table ${table} must not be created by inventory migrations.`,
+    new RegExp(`create\\s+table\\s+if\\s+not\\s+exists\\s+public\\.${table}\\b`, "i"),
+    `Missing safe shared prerequisite creation for ${table}.`,
   )
 }
 

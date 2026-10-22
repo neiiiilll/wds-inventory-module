@@ -1,0 +1,6 @@
+-- Historical migration marker.
+--
+-- This version is already recorded in the shared Supabase project. The former
+-- browser-facing access model was replaced by Firebase callable functions and
+-- deny-all inventory RLS in the canonical 20261022000x migrations.
+-- Keep this no-op file so local migration history matches the remote ledger.

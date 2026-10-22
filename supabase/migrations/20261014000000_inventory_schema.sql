@@ -1,0 +1,6 @@
+-- Historical migration marker.
+--
+-- This version is already recorded in the shared Supabase project. Its original
+-- prototype SQL was superseded by the canonical 20261022000x inventory
+-- migrations and must not be replayed against a fresh or shared database.
+-- Keep this no-op file so local migration history matches the remote ledger.
