@@ -10,23 +10,15 @@ try {
 }
 
 for (const contract of [
-  "registerCurrentUser",
+  "provisionCurrentUser",
   "loadCurrentUser",
-  "listAppUsers",
-  "setAppUserAccess",
-  "listUserRoleHistory",
-  "register_current_app_user",
-  "set_app_user_access",
-  "app_users",
-  "user_role_history",
-  "ensureFirebaseSupabaseRole",
-  "reason.trim()",
+  "provisionInventoryAccess",
+  "getIdToken(true)",
+  "toAppRole",
 ]) assert.ok(source.includes(contract), `Missing user-access contract: ${contract}`)
 
-assert.ok(source.includes("export async function registerCurrentUser(): Promise<AppUser>"), "Registration must not accept a client-selected role.")
-assert.ok(source.includes("Firebase authentication is required"), "Missing Firebase configuration/session error.")
-assert.ok(source.includes("Supabase is not configured"), "Missing Supabase configuration error.")
 assert.equal(source.includes("localStorage"), false, "Roles must not fall back to browser-local authorization.")
-assert.ok(source.includes("supabase"), "User access must use the Supabase backend.")
+assert.equal(source.includes("supabase"), false, "The browser must not query Supabase directly.")
+assert.equal(source.includes("bootstrap"), false, "Email bootstrap authorization must be removed.")
 
 console.log("User access service checks passed.")

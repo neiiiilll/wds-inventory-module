@@ -14,19 +14,12 @@ const module = source
   : {}
 
 assert.deepEqual(module.APP_ROLES, ["Administrator", "Inventory Staff", "Viewer"])
-assert.equal(module.isBootstrapAdministrator?.("NEILCHRISTIAND17@GMAIL.COM"), true)
-assert.equal(module.isBootstrapAdministrator?.("ojt@likhainternet.com"), true)
-assert.equal(module.isBootstrapAdministrator?.("viewer@example.com"), false)
-assert.deepEqual(
-  module.normalizeDemoAccess?.({ role: "Viewer", active: false }, "neilchristiand17@gmail.com"),
-  { role: "Administrator", active: true },
-  "An approved administrator must recover from a stale or disabled browser record.",
-)
-assert.deepEqual(
-  module.normalizeDemoAccess?.({ role: "Inventory Staff", active: true }, "staff@example.com"),
-  { role: "Inventory Staff", active: true },
-  "Ordinary users must retain their assigned demo access.",
-)
+assert.equal(module.toAppRole?.("administrator"), "Administrator")
+assert.equal(module.toAppRole?.("inventory_staff"), "Inventory Staff")
+assert.equal(module.toAppRole?.("viewer"), "Viewer")
+assert.equal(module.toAppRole?.("owner"), null)
+assert.equal(module.isBootstrapAdministrator, undefined, "Email allowlists must not grant access.")
+assert.equal(module.normalizeDemoAccess, undefined, "Browser demo overrides must not grant access.")
 assert.equal(module.canManageUsers?.("Administrator"), true)
 assert.equal(module.canManageUsers?.("Inventory Staff"), false)
 assert.equal(module.canMutateWorkflow?.("Inventory Staff"), true)
