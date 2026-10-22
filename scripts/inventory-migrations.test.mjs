@@ -11,12 +11,13 @@ assert.deepEqual(migrationNames, [
   "20261022000200_inventory_catalog_stock.sql",
   "20261022000300_inventory_workflows.sql",
   "20261022000400_inventory_integrity_rls.sql",
+  "20261022000500_inventory_rpcs.sql",
 ])
 
-const [prerequisites, catalog, workflows, integrity] = await Promise.all(
+const [prerequisites, catalog, workflows, integrity, rpcs] = await Promise.all(
   migrationNames.map((name) => readFile(new URL(name, migrationsUrl), "utf8")),
 )
-const allInventorySql = `${prerequisites}\n${catalog}\n${workflows}\n${integrity}`
+const allInventorySql = `${prerequisites}\n${catalog}\n${workflows}\n${integrity}\n${rpcs}`
 
 assert.doesNotMatch(allInventorySql, /\bsvc_[a-z0-9_]+\b/i)
 assert.match(prerequisites, /'inventory'\s*,\s*'Inventory'/)
@@ -155,4 +156,24 @@ assert.match(integrity, /revoke all on table public\.%I from anon, authenticated
 assert.doesNotMatch(integrity, /create\s+policy/i)
 assert.match(integrity, /create index if not exists inv_stock_movement_lines_tenant_item_idx/i)
 
-console.log("Canonical inventory schema, integrity, and RLS migrations passed.")
+for (const signature of [
+  /inv_next_document_number\s*\(\s*p_tenant_id uuid,\s*p_document_type text,\s*p_document_date date default current_date\s*\)\s*returns text/is,
+  /inv_create_material_request\s*\(\s*p_tenant_id uuid,\s*p_actor_user_id uuid,\s*p_requester_personnel_id uuid,\s*p_job text,\s*p_requested_on date,\s*p_lines jsonb\s*\)\s*returns jsonb/is,
+  /inv_post_stock_movement\s*\(\s*p_tenant_id uuid,\s*p_actor_user_id uuid,\s*p_movement_type text,\s*p_source_type text,\s*p_source_reference text,\s*p_idempotency_key text,\s*p_notes text,\s*p_lines jsonb\s*\)\s*returns jsonb/is,
+]) {
+  assert.match(rpcs, signature)
+}
+assert.equal((rpcs.match(/security definer/gi) ?? []).length, 3)
+assert.equal((rpcs.match(/set search_path = public, pg_temp/gi) ?? []).length, 3)
+for (const documentType of ["MR", "SQ", "PR", "PO", "IR", "RIS", "SR", "SC", "SM"]) {
+  assert.match(rpcs, new RegExp(`'${documentType}'`))
+}
+assert.match(rpcs, /on conflict\s*\(tenant_id,\s*document_type,\s*period_month\)\s*do update/is)
+assert.match(rpcs, /where\s+tenant_id\s*=\s*p_tenant_id[\s\S]*idempotency_key\s*=\s*btrim\(p_idempotency_key\)/i)
+assert.match(rpcs, /order by\s+item_id,\s*location_id/i)
+assert.match(rpcs, /insufficient stock/i)
+assert.match(rpcs, /insert into public\.audit_events/i)
+assert.equal((rpcs.match(/revoke all on function public\.inv_/gi) ?? []).length, 3)
+assert.equal((rpcs.match(/grant execute on function public\.inv_[\s\S]*?to service_role/gi) ?? []).length, 3)
+
+console.log("Canonical inventory migrations and RPC contracts passed.")
