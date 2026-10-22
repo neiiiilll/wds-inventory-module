@@ -24,7 +24,7 @@ assert.doesNotMatch(source, /\bsvc_[a-z0-9_]+\b/i)
 assert.match(source, /SUPABASE_SERVICE_ROLE_KEY/)
 assert.match(source, /FIREBASE_PROJECT_ID/)
 assert.match(source, /INVENTORY_ALLOWED_ORIGINS/)
-assert.match(source, /INVENTORY_BOOTSTRAP_TENANT_KEY/)
+assert.doesNotMatch(source, /INVENTORY_BOOTSTRAP_TENANT_KEY|ensureViewer/)
 assert.doesNotMatch(source, /setCustomUserClaims|tenant_key.*claim/i)
 
 console.log("Supabase Edge Function source and configuration checks passed.")

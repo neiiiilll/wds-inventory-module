@@ -26,11 +26,11 @@ supabase start
 supabase functions serve inventory-api --no-verify-jwt --env-file supabase/functions/.env.local
 ```
 
-## First-login provisioning
+## Login access validation
 
 `provisionInventoryAccess` validates the verified Firebase identity against `app_users`, the single active `tenant_memberships` row, the active tenant, and an inventory `membership_roles` assignment. Tenant context is always derived from the database; no custom claim is read or written.
 
-`INVENTORY_BOOTSTRAP_TENANT_KEY` enables idempotent Viewer provisioning into the named test tenant. It is a non-production convenience only. Leave it empty in production and provision `app_users`, membership, and inventory roles through a trusted administrative process.
+Automatic role assignment is disabled. Before a user can access inventory, an administrator must create their `app_users` record, active tenant membership, and inventory role assignment through a trusted administrative process. Login only reads existing access; it never creates users, memberships, or Viewer roles. Existing Administrator, Inventory Staff, and explicitly assigned Viewer roles are preserved.
 
 ## Deployment
 
@@ -38,7 +38,6 @@ The Supabase project reference is `tehynsbnasihzktzvyzy`. Firebase project `apps
 
 ```sh
 npx supabase secrets set FIREBASE_PROJECT_ID=apps-workspace-b61a9 --project-ref tehynsbnasihzktzvyzy
-npx supabase secrets set INVENTORY_BOOTSTRAP_TENANT_KEY=inventory-test --project-ref tehynsbnasihzktzvyzy
 npx supabase secrets set INVENTORY_ALLOWED_ORIGINS=https://app-invb61a9.web.app,https://app-invb61a9.firebaseapp.com --project-ref tehynsbnasihzktzvyzy
 ```
 
@@ -51,7 +50,7 @@ npx supabase functions deploy inventory-api --project-ref tehynsbnasihzktzvyzy -
 firebase deploy --project apps-workspace-b61a9 --only hosting:app
 ```
 
-After deployment, smoke-test sign-in, first-login provisioning, the inventory list, a version-checked update, and an idempotent stock-post retry. Also use a second tenant fixture to confirm cross-tenant IDs return a generic denial/not-found response without revealing record existence.
+After deployment, smoke-test sign-in with an assigned role, denial for an unassigned account, the inventory list, a version-checked update, and an idempotent stock-post retry. Also use a second tenant fixture to confirm cross-tenant IDs return a generic denial/not-found response without revealing record existence.
 
 Rollback database behavior with a new forward migration; never delete or rewrite migration history already applied to the shared project. Roll back Hosting before the Edge function only when the older UI is compatible with the older API contract.
 
@@ -64,7 +63,7 @@ Rollback database behavior with a new forward migration; never delete or rewrite
 - RPC execution is revoked from `public`, `anon`, and `authenticated` and granted only to `service_role`.
 - Stock posts use bounded idempotency keys and one atomic RPC; item updates require the expected version.
 - Error responses hide SQL details and cross-tenant record existence; logs contain request IDs and failure types, not secrets.
-- `INVENTORY_BOOTSTRAP_TENANT_KEY` is empty in production unless open viewer enrollment into the test tenant is intentional.
+- Login never creates users, memberships, or default roles; inventory access requires an explicit assignment.
 - `INVENTORY_ALLOWED_ORIGINS` contains only the deployed Hosting origins.
 
 ## Important paths

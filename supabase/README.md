@@ -40,15 +40,14 @@ Never paste the original introspection dump into SQL Editor. Never repair a depl
 
 ## Supabase Edge Function configuration
 
-The Edge runtime receives `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` from Supabase automatically. Configure only the Firebase project identifier, bootstrap tenant, and allowed browser origins:
+The Edge runtime receives `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` from Supabase automatically. Configure only the Firebase project identifier and allowed browser origins:
 
 ```sh
 npx supabase secrets set FIREBASE_PROJECT_ID=apps-workspace-b61a9 --project-ref tehynsbnasihzktzvyzy
-npx supabase secrets set INVENTORY_BOOTSTRAP_TENANT_KEY=inventory-test --project-ref tehynsbnasihzktzvyzy
 npx supabase secrets set INVENTORY_ALLOWED_ORIGINS=https://app-invb61a9.web.app,https://app-invb61a9.firebaseapp.com --project-ref tehynsbnasihzktzvyzy
 ```
 
-For local execution, create ignored `supabase/functions/.env.local` values and run `supabase functions serve inventory-api --no-verify-jwt --env-file supabase/functions/.env.local`. Keep `INVENTORY_BOOTSTRAP_TENANT_KEY=inventory-test` only for a non-production test tenant; leave it empty for production deployment.
+For local execution, create ignored `supabase/functions/.env.local` values and run `supabase functions serve inventory-api --no-verify-jwt --env-file supabase/functions/.env.local`. Automatic role assignment is disabled. Create test users, memberships, and explicit inventory roles through an administrative process before signing in.
 
 The gateway JWT check is disabled because the bearer token is a Firebase ID token. The handler itself verifies its RS256 signature, issuer, audience, lifetime, and UID before routing an action. Deploy Edge before Hosting:
 
@@ -57,7 +56,7 @@ npx supabase functions deploy inventory-api --project-ref tehynsbnasihzktzvyzy -
 firebase deploy --project apps-workspace-b61a9 --only hosting:app
 ```
 
-Test first login twice to confirm provisioning is idempotent and membership-derived. Then suspend the membership and confirm the next Edge request is denied. Repeat with a valid ID from another tenant and confirm the response does not disclose its existence.
+Test repeated login to confirm the assigned role is preserved. Confirm a new or unassigned account is denied without creating records, then suspend an existing membership and confirm the next Edge request is denied. Repeat with a valid ID from another tenant and confirm the response does not disclose its existence.
 
 ## RLS and service-role boundary
 

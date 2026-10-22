@@ -14,7 +14,6 @@ function required(name: string): string {
 }
 
 const projectId = required("FIREBASE_PROJECT_ID")
-const bootstrapTenantKey = Deno.env.get("INVENTORY_BOOTSTRAP_TENANT_KEY")?.trim() ?? ""
 const allowedOrigins = new Set(required("INVENTORY_ALLOWED_ORIGINS").split(",").map((value) => value.trim()).filter(Boolean))
 const client = createClient(required("SUPABASE_URL"), required("SUPABASE_SERVICE_ROLE_KEY"), {
   auth: { autoRefreshToken: false, persistSession: false },
@@ -29,7 +28,7 @@ Deno.serve((request) => handleInventoryHttpRequest(request, {
   allowedOrigins,
   verifyToken: verifyFirebaseIdToken,
   actions: {
-    provisionInventoryAccess: (identity, data) => provisionInventoryAccess(identity, data, { repository: provisionRepository, bootstrapTenantKey }),
+    provisionInventoryAccess: (identity, data) => provisionInventoryAccess(identity, data, { repository: provisionRepository }),
     listInventoryItems: (identity, data) => listInventoryItems(identity, data, { accessLookup, repository: inventoryRepository }),
     updateInventoryItem: (identity, data) => updateInventoryItem(identity, data, { accessLookup, repository: inventoryRepository }),
     createMaterialRequest: (identity, data) => createMaterialRequest(identity, data, { accessLookup, repository: workflowRepository }),

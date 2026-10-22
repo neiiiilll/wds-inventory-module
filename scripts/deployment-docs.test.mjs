@@ -16,8 +16,7 @@ for (const contract of [
   "supabase secrets set",
   "FIREBASE_PROJECT_ID",
   "INVENTORY_ALLOWED_ORIGINS",
-  "INVENTORY_BOOTSTRAP_TENANT_KEY",
-  "non-production",
+  "Automatic role assignment is disabled",
   "Edge before Hosting",
   "Firebase ID token",
   "service role bypasses RLS",
@@ -26,6 +25,7 @@ for (const contract of [
   "Security checklist",
   "forward migration",
 ]) assert.ok(docs.includes(contract), `Missing deployment documentation contract: ${contract}`)
+assert.equal(docs.includes("INVENTORY_BOOTSTRAP_TENANT_KEY"), false, "Docs must not advertise automatic Viewer enrollment.")
 
 await assert.rejects(access(new URL("../functions/", import.meta.url)), { code: "ENOENT" })
 assert.equal("functions" in firebase, false, "Firebase must be static Hosting-only.")

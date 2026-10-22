@@ -17,21 +17,14 @@ export interface ProvisionRecord extends ProvisionIdentity {
 }
 export interface ProvisionRepository {
   resolve(firebaseUid: string): Promise<ProvisionRecord | null>
-  ensureViewer(identity: ProvisionIdentity, tenantKey: string): Promise<ProvisionRecord>
 }
-export interface ProvisionDependencies { repository: ProvisionRepository; bootstrapTenantKey: string }
+export interface ProvisionDependencies { repository: ProvisionRepository }
 
 type TenantRow = { id: string; tenant_key: string; active: boolean }
 type MembershipRow = { id: string; tenant_id: string; status: string }
 
 function denied(): never {
   throw new ApiError("permission-denied", "Inventory access is not permitted.")
-}
-
-function assertResult<T>(data: T | null, error: { message?: string } | null): T {
-  if (error) throw new Error(error.message || "Supabase provisioning failed.")
-  if (!data) throw new Error("Supabase provisioning returned no record.")
-  return data
 }
 
 export function createProvisionRepository(client: SupabaseClient): ProvisionRepository {
@@ -80,41 +73,6 @@ export function createProvisionRepository(client: SupabaseClient): ProvisionRepo
         roleKeys,
       }
     },
-    async ensureViewer(identity, tenantKey) {
-      const tenantResult = await client.from("tenants").select("id").eq("tenant_key", tenantKey).eq("active", true).limit(1).maybeSingle()
-      const tenant = assertResult(tenantResult.data as { id: string } | null, tenantResult.error)
-      const userResult = await client.from("app_users").select("id, active").eq("firebase_uid", identity.firebaseUid).limit(1).maybeSingle()
-      if (userResult.error) throw new Error(userResult.error.message)
-      let user = userResult.data as { id: string; active: boolean } | null
-      if (!user) {
-        const insertResult = await client.from("app_users").insert({ firebase_uid: identity.firebaseUid, email: identity.email, display_name: identity.displayName, active: true }).select("id, active").single()
-        user = assertResult(insertResult.data as { id: string; active: boolean } | null, insertResult.error)
-      } else if (!user.active) {
-        denied()
-      } else {
-        const updateResult = await client.from("app_users").update({ email: identity.email, display_name: identity.displayName, updated_at: new Date().toISOString() }).eq("id", user.id)
-        if (updateResult.error) throw new Error(updateResult.error.message)
-      }
-      const membershipResult = await client.from("tenant_memberships").select("id, tenant_id, status").eq("user_id", user.id).limit(2)
-      if (membershipResult.error) throw new Error(membershipResult.error.message)
-      const memberships = (membershipResult.data ?? []) as MembershipRow[]
-      if (memberships.length > 1 || (memberships[0] && memberships[0].tenant_id !== tenant.id)) denied()
-      let membership = memberships[0]
-      if (!membership) {
-        const insertResult = await client.from("tenant_memberships").insert({ tenant_id: tenant.id, user_id: user.id, status: "active" }).select("id, tenant_id, status").single()
-        membership = assertResult(insertResult.data as MembershipRow | null, insertResult.error)
-      } else if (membership.status !== "active") {
-        denied()
-      }
-      const roleResult = await client.from("membership_roles").upsert(
-        { membership_id: membership.id, app_key: "inventory", role_key: "viewer" },
-        { onConflict: "membership_id,app_key,role_key", ignoreDuplicates: true },
-      )
-      if (roleResult.error) throw new Error(roleResult.error.message)
-      const result = await repository.resolve(identity.firebaseUid)
-      if (!result) throw new Error("Provisioned inventory access could not be resolved.")
-      return result
-    },
   }
   return repository
 }
@@ -135,22 +93,11 @@ export async function provisionInventoryAccess(
     }
   }
   if (!identity.email || !identity.emailVerified) denied()
-  const provisionIdentity: ProvisionIdentity = { firebaseUid: identity.uid, email: identity.email, displayName: identity.displayName || identity.email }
-  let record = await deps.repository.resolve(identity.uid)
+  const record = await deps.repository.resolve(identity.uid)
   if (record && !record.userActive) {
     return { status: "disabled", firebaseUid: record.firebaseUid, email: record.email, displayName: record.displayName, tenantKey: null, roleKey: null }
   }
-  if (record && record.membershipCount > 1) denied()
-  const membershipUsable = record?.membershipCount === 1 && record.membershipStatus === "active" && record.tenantActive && Boolean(record.tenantKey)
-  let roleKey = record ? roleFrom(record) : null
-  if (!membershipUsable || !roleKey) {
-    const bootstrapTenant = deps.bootstrapTenantKey.trim()
-    if (record?.membershipCount === 1 && !membershipUsable) denied()
-    const targetTenant = record?.tenantKey ?? bootstrapTenant
-    if (!targetTenant) denied()
-    record = await deps.repository.ensureViewer(provisionIdentity, targetTenant)
-    roleKey = roleFrom(record)
-  }
+  const roleKey = record ? roleFrom(record) : null
   if (!record || !record.userActive || record.membershipCount !== 1 || record.membershipStatus !== "active" || !record.tenantActive || !record.tenantKey || !roleKey) denied()
   return { status: "active", firebaseUid: record.firebaseUid, email: record.email, displayName: record.displayName, tenantKey: record.tenantKey, roleKey }
 }
