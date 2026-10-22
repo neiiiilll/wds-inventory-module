@@ -1,0 +1,4 @@
+project_id = "create-inventory-module-mockup"
+
+[functions.inventory-api]
+verify_jwt = false
