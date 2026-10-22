@@ -14,9 +14,10 @@ assert.deepEqual(migrationNames, [
   "20261022000300_inventory_workflows.sql",
   "20261022000400_inventory_integrity_rls.sql",
   "20261022000500_inventory_rpcs.sql",
+  "20261022000600_inventory_legacy_compatibility.sql",
 ])
 
-const [legacySchema, legacyAccess, prerequisites, catalog, workflows, integrity, rpcs] = await Promise.all(
+const [legacySchema, legacyAccess, prerequisites, catalog, workflows, integrity, rpcs, legacyCompatibility] = await Promise.all(
   migrationNames.map((name) => readFile(new URL(name, migrationsUrl), "utf8")),
 )
 assert.match(legacySchema, /Historical migration marker/)
@@ -184,5 +185,11 @@ assert.match(rpcs, /insufficient stock/i)
 assert.match(rpcs, /insert into public\.audit_events/i)
 assert.equal((rpcs.match(/revoke all on function public\.inv_/gi) ?? []).length, 3)
 assert.equal((rpcs.match(/grant execute on function public\.inv_[\s\S]*?to service_role/gi) ?? []).length, 3)
+
+assert.match(legacyCompatibility, /information_schema\.columns/i)
+assert.match(legacyCompatibility, /table_name\s*=\s*'app_users'/i)
+assert.match(legacyCompatibility, /column_name\s*=\s*'role'/i)
+assert.match(legacyCompatibility, /alter table public\.app_users alter column role set default 'Viewer'/i)
+assert.doesNotMatch(legacyCompatibility, /\bsvc_[a-z0-9_]+\b/i)
 
 console.log("Canonical inventory migrations and RPC contracts passed.")

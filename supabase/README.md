@@ -11,6 +11,7 @@ Supabase applies the timestamped files in this dependency order:
 3. `20261022000300_inventory_workflows.sql` — request/procurement/receiving/issue/return/count workflow chain.
 4. `20261022000400_inventory_integrity_rls.sql` — indexes, timestamps, tenant integrity, and deny-by-default RLS.
 5. `20261022000500_inventory_rpcs.sql` — atomic document numbering, request creation, and stock posting.
+6. `20261022000600_inventory_legacy_compatibility.sql` — forward-only compatibility for the approved legacy shared `app_users.role` requirement.
 
 The shared prerequisites add `UNIQUE (tenant_id, id)` to parent tables when absent and `UNIQUE (app_key, role_key)` to `app_roles`. Composite child foreign keys are represented as one composite constraint, not two same-named single-column constraints. Review these shared indexes with the service desk team because both applications use the same tables.
 
