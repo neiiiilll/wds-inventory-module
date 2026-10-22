@@ -8,6 +8,7 @@ export interface AppUser {
   email: string
   displayName: string
   role: AppRole
+  tenantKey: string | null
   active: boolean
   createdAt: string
   updatedAt: string

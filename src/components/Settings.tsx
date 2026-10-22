@@ -1,20 +1,16 @@
 import type { AppUser } from "../services/access-control"
-import { canManageUsers } from "../services/access-control"
 import { userInitials } from "../services/user-display"
-import UserAccess from "./UserAccess"
 
 export default function Settings({ currentUser, onSignOut }: {
   currentUser: AppUser
   onSignOut: () => void
 }) {
-  const administrator = canManageUsers(currentUser.role)
-
   return <>
     <div className="page-header">
       <div>
         <span className="eyebrow">SETTINGS</span>
         <h1>Account settings</h1>
-        <p>Review your signed-in Google account and demo system access.</p>
+        <p>Review your signed-in Google account and inventory access.</p>
       </div>
     </div>
 
@@ -29,18 +25,14 @@ export default function Settings({ currentUser, onSignOut }: {
         <span className="badge badge-available"><i />{currentUser.active ? "Active" : "Inactive"}</span>
       </div>
       <dl className="settings-details">
-        <div><dt>Demo role</dt><dd><span className="type">{currentUser.role}</span></dd></div>
+        <div><dt>Inventory role</dt><dd><span className="type">{currentUser.role}</span></dd></div>
+        <div><dt>Tenant</dt><dd>{currentUser.tenantKey ?? "Unavailable"}</dd></div>
         <div><dt>Account access</dt><dd>{currentUser.active ? "Enabled" : "Disabled"}</dd></div>
-        <div><dt>Authentication</dt><dd>Google sign-in</dd></div>
       </dl>
       <div className="settings-actions">
-        <p>Demo role changes are saved in this browser and controlled by an Administrator.</p>
+        <p>Tenant and role assignments are managed securely by an Administrator.</p>
         <button className="btn btn-secondary" type="button" onClick={onSignOut}>Sign out</button>
       </div>
     </section>
-
-    {administrator
-      ? <UserAccess currentUser={currentUser} embedded />
-      : <section className="panel settings-access-note"><div className="panel-head"><div><h2>User access</h2><p>Only Administrators can assign roles or enable and disable accounts.</p></div></div></section>}
   </>
 }

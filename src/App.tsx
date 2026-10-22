@@ -9,6 +9,7 @@ import ClientDocument from "./components/ClientDocument";
 import LoginPage from "./components/LoginPage";
 import AccessGate from "./components/AccessGate";
 import Settings from "./components/Settings";
+import InventoryItemsPage from "./components/InventoryItemsPage";
 
 import MaterialCharges from "./components/MaterialCharges"
 
@@ -525,13 +526,7 @@ function InventoryApp({ session, appUser }: { session: User; appUser: AppUser })
             </section>
           )}
           {page === "inventory" && (
-            <Inventory
-              items={items}
-              canEdit={canEdit}
-              onAdd={() => requirePermission(() => setModal("add"))}
-              onView={showItem}
-              onAction={openItem}
-            />
+            <InventoryItemsPage canEdit={canEdit} />
           )}
           {[
             "requests",

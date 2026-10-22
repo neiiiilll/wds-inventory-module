@@ -18,6 +18,7 @@ export async function provisionCurrentUser(): Promise<AppUser> {
     email: response.email,
     displayName: response.displayName,
     role: role ?? "Viewer",
+    tenantKey: response.tenantKey,
     active: response.status === "active",
     createdAt: timestamp,
     updatedAt: timestamp,
