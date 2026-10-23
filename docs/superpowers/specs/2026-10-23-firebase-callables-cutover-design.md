@@ -10,6 +10,8 @@ The React app is hosted by Firebase and signs users in with Firebase Authenticat
 
 Firebase Functions run on Node.js 22. They use Firebase Secret Manager values `SUPABASE_URL` and `SUPABASE_SECRET_KEY` to create a server-only Supabase client. `SUPABASE_SECRET_KEY` holds a current Supabase `sb_secret_...` key rather than the deprecated legacy JWT service-role key. No Supabase credential or public Supabase endpoint remains in browser configuration after cutover.
 
+The inventory Functions source is assigned to the Firebase codebase `inventory`. This isolates its deployment lifecycle from the shared project's existing `serviceDesk` callable and prevents inventory deploys from proposing that function for deletion.
+
 Supabase remains the shared Postgres backend. Existing migrations, deny-by-default inventory RLS, `inv_*` tables, shared access tables, and atomic inventory RPCs remain unchanged. Functions must never access a `svc_*` table.
 
 ## Identity, claims, and authorization

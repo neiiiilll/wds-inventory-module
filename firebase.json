@@ -16,6 +16,7 @@
   },
   "functions": {
     "source": "functions",
+    "codebase": "inventory",
     "runtime": "nodejs22"
   },
   "emulators": {

@@ -10,7 +10,7 @@
     "build:functions": "npm --prefix functions run build",
     "emulators": "npm run build:functions && firebase emulators:start --project apps-workspace-b61a9 --only auth,functions,hosting",
     "build": "vite build",
-    "deploy:functions": "npm run build:functions && firebase deploy --project apps-workspace-b61a9 --only functions",
+    "deploy:functions": "npm run build:functions && firebase deploy --project apps-workspace-b61a9 --only functions:inventory",
     "deploy:hosting": "npm run build && firebase deploy --project apps-workspace-b61a9 --only hosting:app",
     "preview": "vite preview",
     "format": "oxfmt"

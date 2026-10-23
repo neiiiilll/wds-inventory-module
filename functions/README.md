@@ -82,7 +82,7 @@ For deployed smoke tests use real Firebase web configuration and verified fixtur
 
 ## Release, smoke tests, and rollback
 
-Enable Blaze for the target project, set both secrets interactively, run tests/build/typecheck, and deploy Functions before Hosting with `npm run deploy:functions`. Run `firebase functions:list --project apps-workspace-b61a9` and verify all five exports in `asia-southeast1`. Smoke-test provisioning (including missing/stale claims), list, expected-version update, material request, stock posting and same-key replay; inspect the database to verify transaction/idempotency behavior.
+Enable Blaze for the target project, set both secrets interactively, run tests/build/typecheck, and deploy Functions before Hosting with `npm run deploy:functions`. The Firebase configuration uses the isolated `inventory` codebase so this deploy cannot delete the shared project's `serviceDesk` function. Run `firebase functions:list --project apps-workspace-b61a9` and verify all five exports in `asia-southeast1`. Smoke-test provisioning (including missing/stale claims), list, expected-version update, material request, stock posting and same-key replay; inspect the database to verify transaction/idempotency behavior.
 
 Use separate tenant A/B fixtures for cross-tenant reads and every mutation reference. Verify Viewer cannot mutate; unauthenticated, unverified, unassigned, and revoked users cannot gain access; forged tenant/actor/role fields are rejected. Record generic failures and unchanged foreign-tenant rows. A multi-line batch with a bad reference must leave all balances, headers, lines, counters, and audit writes unchanged. See [database integration tests](../supabase/tests/inventory_rpcs_test.sql).
 

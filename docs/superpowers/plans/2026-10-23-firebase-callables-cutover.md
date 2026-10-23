@@ -13,6 +13,7 @@
 ## Global Constraints
 
 - Runtime is Node.js 22 and region is `asia-southeast1`.
+- Firebase codebase is `inventory`, isolated from the shared project's `serviceDesk` callable.
 - The custom claim key is exactly `tenant_id` and its value is the Supabase tenant UUID.
 - `SUPABASE_URL` and `SUPABASE_SECRET_KEY` are Firebase secrets bound to every database-using callable.
 - No browser code or `VITE_*` value contains a Supabase service credential.

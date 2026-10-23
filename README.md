@@ -49,7 +49,7 @@ npm run deploy:functions
 firebase functions:list --project apps-workspace-b61a9
 ```
 
-Deploy Functions before Hosting. Confirm all five callable names and `asia-southeast1`; complete callable smoke tests before running `npm run deploy:hosting`. Changing a secret requires redeploying bound Functions. [functions/README.md](functions/README.md) documents each callable and the smoke harness.
+Deploy the isolated `inventory` Functions codebase before Hosting. This preserves the separate `serviceDesk` callable in the shared Firebase project. Confirm all five callable names and `asia-southeast1`; complete callable smoke tests before running `npm run deploy:hosting`. Changing a secret requires redeploying bound Functions. [functions/README.md](functions/README.md) documents each callable and the smoke harness.
 
 Use verified, explicitly assigned tenant A and tenant B accounts. Smoke-test provisioning and claim refresh, listing, a version-checked update, a draft material request, and a stock post retried with the same idempotency key. Verify one stock movement and one balance change. Repeat a stale item version and expect `aborted`. Unassigned/unverified accounts, disabled users, and revoked memberships must be denied. Viewer may list but cannot mutate.
 
