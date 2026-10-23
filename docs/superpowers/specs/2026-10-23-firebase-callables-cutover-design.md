@@ -39,4 +39,3 @@ Functions deploy before Hosting. If callable smoke tests fail before Hosting cut
 ## Verification
 
 Tests cover unauthenticated calls, malformed or stale claims, explicit-role enforcement, multiple memberships, tenant mismatch, forbidden client fields, tenant-scoped queries, cross-tenant identifiers, safe errors, optimistic conflicts, transaction failures, and idempotent replay. Source scans reject `svc_*` references and browser/server-secret leakage. Production smoke tests use separate tenant A and tenant B users.
-

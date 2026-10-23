@@ -130,4 +130,3 @@
 - [ ] **Step 5: Smoke-test authentication, provisioning, listing, and cross-tenant denial** with available test identities.
 - [ ] **Step 6: Build and deploy Firebase Hosting** only after callable smoke tests pass.
 - [ ] **Step 7: Report files, commands, deployed names/region, unresolved external test prerequisites, and rollback instructions.**
-
