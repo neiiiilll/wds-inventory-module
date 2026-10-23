@@ -35,8 +35,9 @@ async function token(overrides: {
   expiresIn?: string
   issuedAt?: number
   signingKey?: SigningKey
+  claims?: Record<string, unknown>
 } = {}) {
-  return new SignJWT({ email: "viewer@example.com", email_verified: true, name: "Viewer" })
+  return new SignJWT({ email: "viewer@example.com", email_verified: true, name: "Viewer", ...overrides.claims })
     .setProtectedHeader({ alg: "RS256", kid: "primary" })
     .setIssuer(overrides.issuer ?? issuer)
     .setAudience(overrides.audience ?? projectId)
@@ -63,6 +64,20 @@ test("verifyFirebaseIdToken returns the verified Firebase identity", async () =>
     emailVerified: true,
     displayName: "Viewer",
   })
+})
+
+test("verifyFirebaseIdToken does not promote Firebase tenant claims into Inventory authority", async () => {
+  const identity = await verifyFirebaseIdToken(await token({
+    claims: { tenant_id: "22222222-2222-4222-8222-222222222222", role: "administrator" },
+  }), projectId, keySet)
+  assert.deepEqual(identity, {
+    uid: "firebase-uid-1",
+    email: "viewer@example.com",
+    emailVerified: true,
+    displayName: "Viewer",
+  })
+  assert.equal("tenantId" in identity, false)
+  assert.equal("role" in identity, false)
 })
 
 for (const [name, createToken] of [
