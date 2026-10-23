@@ -6,6 +6,11 @@ export const INVENTORY_OPERATIONS = [
   "updateInventoryItem",
   "createMaterialRequest",
   "postStockMovement",
+  "getInventoryDashboard",
+  "listProcurementDocuments",
+  "getProcurementDocument",
+  "getProcurementReferenceData",
+  "listInventoryMovements",
 ] as const
 export type InventoryOperation = typeof INVENTORY_OPERATIONS[number]
 type Action = (request: CallableRequest<unknown>) => Promise<unknown>

@@ -1,5 +1,5 @@
 // Test utilities only. Never connect to an existing service or cloud database.
-import { execFile } from "node:child_process"
+import { execFile, spawn } from "node:child_process"
 import { promisify } from "node:util"
 import { mkdir, mkdtemp, readFile, readdir, realpath, rm } from "node:fs/promises"
 import { createServer } from "node:net"
@@ -36,9 +36,17 @@ export async function createTestDatabase() {
   const options = { windowsHide: true, timeout: 60000, maxBuffer: 2 ** 20 }
   let started = false
   const clients = new Set()
+  // pg_ctl starts a long-lived child on Windows. Ignore inherited pipes and
+  // await its own exit, not descendant pipe EOF (which can wait a full minute).
+  const control = args => new Promise((resolve,reject) => {
+    const child=spawn(binary("pg_ctl"),args,{windowsHide:true,stdio:"ignore"})
+    const timer=setTimeout(()=>{child.kill();reject(new Error("Test PostgreSQL control timed out"))},60000)
+    child.once("error",error=>{clearTimeout(timer);reject(error)})
+    child.once("exit",code=>{clearTimeout(timer);code===0?resolve():reject(new Error(`Test PostgreSQL control exited ${code}`))})
+  })
   const close = async () => {
     for (const client of clients) await client.end().catch(() => {})
-    if (started) await exec(binary("pg_ctl"), ["-D", data, "-m", "fast", "-w", "stop"], options)
+    if (started) await control(["-D", data, "-m", "fast", "-w", "stop"])
     // Remove only a verified test-owned directory, never PG's installed data.
     const target = await realpath(dir)
     const workspace = await realpath(root)
@@ -49,7 +57,7 @@ export async function createTestDatabase() {
     console.error("[inventory-db-test] initializing isolated cluster")
     await exec(binary("initdb"), ["-D", data, "-U", "codex_test", "--auth=trust", "--encoding=UTF8", "--locale=C", "--no-sync"], options)
     console.error("[inventory-db-test] starting isolated cluster")
-    await exec(binary("pg_ctl"), ["-D", data, "-l", path.join(dir, "server.log"), "-o", `-h 127.0.0.1 -p ${port} -F`, "-w", "start"], options)
+    await control(["-D", data, "-l", path.join(dir, "server.log"), "-o", `-h 127.0.0.1 -p ${port} -F`, "-w", "start"])
     started = true
     console.error("[inventory-db-test] connecting to isolated cluster")
     const connect = async url => {

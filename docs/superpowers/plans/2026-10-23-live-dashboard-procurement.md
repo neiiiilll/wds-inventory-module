@@ -55,11 +55,11 @@ Read RPCs receive server-derived `p_tenant_id` and `p_actor_user_id`, plus allow
 
 **Interfaces:** `npm run test:database` creates a disposable uniquely named `inventory_test_*` database on loopback only and executes real SQL using separate PostgreSQL connections. It must reject Apps Core/production URLs before connecting. Fixtures create minimal shared authorization tables and canonical Inventory tables in the disposable database only. SQL helper `inv_require_procurement_access(tenant, actor, admin_only)` validates current authority; common command/idempotency helpers lock and fingerprint tenant/kind/actor/input consistently.
 
-- [ ] Write failing executed-SQL tests: anonymous/authenticated cannot execute RPCs; Viewer/inactive/multiple-membership/wrong-tenant actors cannot mutate; existing legacy records survive migration unchanged; same key+payload replays and changed actor/payload conflicts.
-- [ ] Run `npm run test:database -- foundation` and capture meaningful failures before adding production SQL.
-- [ ] Implement the guarded runner with real disposable PostgreSQL, not SQLite/mock SQL. Read-only preflight found PostgreSQL 18.1 tools at `C:\Program Files\PostgreSQL\18\bin`; use these to initialize an isolated cluster under an ignored workspace test directory, bind loopback on a separately allocated port, and stop only the test-owned server afterward. Never connect to/start/stop an existing Windows database service or use production as a fixture. Verify the native runner actually starts before claiming SQL execution/concurrency coverage; if blocked, report it rather than mark tests passed.
-- [ ] Implement additive MR/quotation/PR/PO/inspection metadata, Inventory-only events/commands/review-route/tracking/attachment tables, composite tenant FKs and explicit privileges. Preserve unknown historical status strings; expose them read-only instead of coercing or automatically approving. Store revision-specific new PR decisions separately from the existing stage-unique approvals table.
-- [ ] Run the foundation tests and `npm run test:functions`; commit only green, scoped changes.
+- [x] Write failing executed-SQL tests: anonymous/authenticated cannot execute RPCs; Viewer/inactive/multiple-membership/wrong-tenant actors cannot mutate; existing legacy records survive migration unchanged; same key+payload replays and changed actor/payload conflicts.
+- [x] Run `npm run test:database -- foundation` and capture meaningful failures before adding production SQL.
+- [x] Implement the guarded runner with real disposable PostgreSQL, not SQLite/mock SQL. Read-only preflight found PostgreSQL 18.1 tools at `C:\Program Files\PostgreSQL\18\bin`; use these to initialize an isolated cluster under an ignored workspace test directory, bind loopback on a separately allocated port, and stop only the test-owned server afterward. Never connect to/start/stop an existing Windows database service or use production as a fixture. Verify the native runner actually starts before claiming SQL execution/concurrency coverage; if blocked, report it rather than mark tests passed.
+- [x] Implement additive MR/quotation/PR/PO/inspection metadata, Inventory-only events/commands/review-route/tracking/attachment tables, composite tenant FKs and explicit privileges. Preserve unknown historical status strings; expose them read-only instead of coercing or automatically approving. Store revision-specific new PR decisions separately from the existing stage-unique approvals table.
+- [x] Run the foundation tests and `npm run test:functions`; commit only green, scoped changes.
 
 ### Task 2: Authoritative Dashboard, registers, details and reference reads
 
@@ -67,11 +67,11 @@ Read RPCs receive server-derived `p_tenant_id` and `p_actor_user_id`, plus allow
 
 **Interfaces:** five read operations defined above. List inputs use `limit` 1–100 with stable keyset cursors scoped to kind/filter; selectors allow only `items`, `suppliers`, `locations`, `requesters`, `reviewers`, `warehouses`. Details require tenant/ID matches on all nested rows; history/related lists paginate. `DashboardDto` contains activeItems, stockQuantity, lowStockItems, outOfStockItems, criticalItems (5), recentMovements (6), and live procurement/receipt/issued-net-cost summary fields.
 
-- [ ] Write failing tests for two tenants; >100 items/multiple balances; inactive/zero/low-stock metrics; empty tenants; posted-only movements; historic missing costs; foreign IDs/filters/cursors; unknown selector kinds; missing snapshots and unknown historical statuses.
-- [ ] Run focused Functions and `npm run test:database -- reads`; require observed failures.
-- [ ] Implement SQL aggregation across all authorized rows without join multiplication or client-page truncation. Every shared name lookup follows a tenant-bound membership/personnel reference. Return decimal text and explicit missing-data flags. Resolve item/location-level movement balances accurately.
-- [ ] Add read handlers through `requireAccess` and safe error mapping, then register only inside `inventory`. Do not touch React yet.
-- [ ] Run focused/legacy backend tests, Functions build and SQL read tests; commit.
+- [x] Write failing tests for two tenants; >100 items/multiple balances; inactive/zero/low-stock metrics; empty tenants; posted-only movements; historic missing costs; foreign IDs/filters/cursors; unknown selector kinds; missing snapshots and unknown historical statuses.
+- [x] Run focused Functions and `npm run test:database -- reads`; require observed failures.
+- [x] Implement SQL aggregation across all authorized rows without join multiplication or client-page truncation. Every shared name lookup follows a tenant-bound membership/personnel reference. Return decimal text and explicit missing-data flags. Resolve item/location-level movement balances accurately.
+- [x] Add read handlers through `requireAccess` and safe error mapping, then register only inside `inventory`. Do not touch React yet.
+- [x] Run focused/legacy backend tests, Functions build and SQL read tests; commit.
 
 ### Task 3: MR, quotations, staged PRs and POs
 

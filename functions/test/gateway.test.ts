@@ -75,8 +75,8 @@ test("gateway preserves domain Viewer denial before malformed mutation input val
   }
 })
 
-test("gateway dispatches only the five named operations with verified identity and original input", async () => {
-  assert.deepEqual(INVENTORY_OPERATIONS, ["provisionInventoryAccess", "listInventoryItems", "updateInventoryItem", "createMaterialRequest", "postStockMovement"])
+test("gateway dispatches only approved operations with verified identity and original input", async () => {
+  assert.deepEqual(INVENTORY_OPERATIONS, ["provisionInventoryAccess", "listInventoryItems", "updateInventoryItem", "createMaterialRequest", "postStockMovement", "getInventoryDashboard", "listProcurementDocuments", "getProcurementDocument", "getProcurementReferenceData", "listInventoryMovements"])
   const f = fixture()
   for (const operation of INVENTORY_OPERATIONS) {
     assert.deepEqual(await dispatchInventory(request({ operation, input: { marker: operation } }), f.deps), { operation })
