@@ -6,7 +6,7 @@ import type { AccessLookup } from "../src/access"
 export const tenantId = "11111111-1111-4111-8111-111111111111"
 export const itemId = "80000000-0000-0000-0000-000000000001"
 export function request(data: unknown = {}): CallableRequest<unknown> {
-  return { data, auth: { uid: "firebase-1", token: { tenant_id: tenantId } } } as CallableRequest<unknown>
+  return { data, auth: { uid: "firebase-1", token: { email_verified: true, tenant_id: tenantId } } } as CallableRequest<unknown>
 }
 export function lookup(roleKey = "inventory_staff"): AccessLookup {
   return {

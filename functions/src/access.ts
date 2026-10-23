@@ -73,6 +73,7 @@ export async function requireAccess(
   lookup: AccessLookup,
 ): Promise<AccessContext> {
   if (!request.auth) throw new HttpsError("unauthenticated", "Sign in to continue.")
+  if (request.auth.token.email_verified !== true) denyAccess()
   const claim = request.auth.token.tenant_id
   if (!isTenantUuid(claim)) denyAccess()
   const user = await lookup.findUser(request.auth.uid)

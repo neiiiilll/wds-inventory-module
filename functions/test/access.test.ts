@@ -11,7 +11,7 @@ const tenant: TenantRecord = { id: tenantId, tenantKey: "inventory-test", active
 const viewer: RoleRecord = { roleKey: "viewer", applicationActive: true, roleExists: true }
 
 function request(claim: unknown = tenantId): CallableRequest<unknown> {
-  return { auth: { uid: "firebase-1", token: { tenant_id: claim } }, data: {} } as CallableRequest<unknown>
+  return { auth: { uid: "firebase-1", token: { email_verified: true, tenant_id: claim } }, data: {} } as CallableRequest<unknown>
 }
 
 function lookup(overrides: Partial<{ user: AppUserRecord | null; memberships: MembershipRecord[]; tenant: TenantRecord | null; roles: RoleRecord[] }> = {}): AccessLookup {
@@ -25,6 +25,18 @@ function lookup(overrides: Partial<{ user: AppUserRecord | null; memberships: Me
 
 test("requires Firebase authentication", async () => {
   await assert.rejects(requireAccess({ data: {} } as CallableRequest<unknown>, "inventory", ["viewer"], lookup()), { code: "unauthenticated" })
+})
+
+test("rejects an unverified Firebase identity before database access", async () => {
+  const req = request()
+  req.auth!.token.email_verified = false
+  const inaccessibleLookup: AccessLookup = {
+    async findUser() { throw new Error("database must not be reached") },
+    async listMemberships() { throw new Error("database must not be reached") },
+    async findTenant() { throw new Error("database must not be reached") },
+    async listRoles() { throw new Error("database must not be reached") },
+  }
+  await assert.rejects(requireAccess(req, "inventory", ["viewer"], inaccessibleLookup), { code: "permission-denied" })
 })
 
 test("returns immutable database context with allowed-role priority", async () => {
