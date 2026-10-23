@@ -1,0 +1,10 @@
+import type {DocumentKind,DocumentSummary} from '../../services/procurement-api'
+
+const TITLES:Record<DocumentKind,string>={material_request:'Material requests',quotation:'Supplier quotations',purchase_request:'Purchase requests',purchase_order:'Purchase orders',inspection:'Inspection & acceptance'}
+
+export default function ProcurementRegister({kind,items,loading,error,nextCursor,onSelect,onRefresh,onNext}:{kind:DocumentKind;items:DocumentSummary[];loading:boolean;error:boolean;nextCursor:string|null;onSelect:(item:DocumentSummary)=>void;onRefresh:()=>void;onNext:()=>void}){
+ return <section className="panel workflow-register">
+  <div className="panel-head workflow-register-header"><div><h2>{TITLES[kind]}</h2><p>Live, tenant-scoped records from Supabase.</p></div><button className="btn btn-secondary" onClick={onRefresh}>Refresh</button></div>
+  {loading?<div className="workflow-empty"><strong>Loading live records…</strong></div>:error?<div className="workflow-empty live-error-state"><strong>The inventory service could not complete the request.</strong><p>Your current draft, if any, has not been discarded.</p><button className="btn btn-secondary" onClick={onRefresh}>Retry</button></div>:items.length?<><div className="table-wrap"><table><thead><tr><th>Reference</th><th>Date</th><th>Status</th><th>Revision</th><th>Record type</th><th></th></tr></thead><tbody>{items.map(item=><tr key={item.id}><td><strong>{item.reference}</strong></td><td>{item.date??'—'}</td><td><span className="workflow-badge">{item.status}</span></td><td>{item.revision??'—'}</td><td>{item.historical?'Historical · read only':'Managed live workflow'}</td><td><button className="btn btn-ghost" onClick={()=>onSelect(item)}>Open</button></td></tr>)}</tbody></table></div>{nextCursor&&<div className="pagination"><span>More tenant records are available.</span><button className="btn btn-secondary" onClick={onNext}>Next page</button></div>}</>:<div className="workflow-empty"><strong>No {TITLES[kind].toLowerCase()} found</strong><p>No browser demo records are shown in this live register.</p></div>}
+ </section>
+}

@@ -1,0 +1,12 @@
+import {useState,type ChangeEvent} from 'react'
+import type {DocumentKind} from '../../services/procurement-api'
+import {createProcurementAttachmentUpload,finalizeProcurementAttachment,getProcurementAttachmentDownload} from '../../services/procurement-api'
+
+type Attachment={id:string;name:string;contentType:string;size:number}
+const ALLOWED=new Set(['application/pdf','image/png','image/jpeg'])
+export default function ProcurementAttachments({kind,id,attachments,canUpload,onChanged}:{kind:DocumentKind;id:string;attachments:Attachment[];canUpload:boolean;onChanged:()=>void}){
+ const [busy,setBusy]=useState(false),[error,setError]=useState('')
+ const upload=async(event:ChangeEvent<HTMLInputElement>)=>{const file=event.target.files?.[0];event.target.value='';if(!file)return;if(!ALLOWED.has(file.type)||file.size>5*1024*1024){setError('Choose one PDF, PNG, or JPEG file no larger than 5 MiB.');return}setBusy(true);setError('');try{const reservation=await createProcurementAttachmentUpload({kind,id,name:file.name,contentType:file.type as 'application/pdf'|'image/png'|'image/jpeg',size:file.size});const response=await fetch(reservation.signedUrl,{method:'PUT',headers:{'content-type':file.type,'x-upsert':'false'},body:file});if(!response.ok)throw new Error('upload');await finalizeProcurementAttachment(reservation.attachmentId);onChanged()}catch{setError('The private attachment was not saved. Retry with the current document.')}finally{setBusy(false)}}
+ const download=async(attachmentId:string)=>{setBusy(true);setError('');try{const result=await getProcurementAttachmentDownload(attachmentId);window.open(result.url,'_blank','noopener,noreferrer')}catch{setError('The private download link could not be created.')}finally{setBusy(false)}}
+ return <section><h3 className="workflow-subtitle">Private attachments</h3>{attachments.length?<div className="workflow-attachments">{attachments.map(file=><button className="btn btn-secondary" type="button" key={file.id} onClick={()=>void download(file.id)} disabled={busy}>{file.name}</button>)}</div>:<p className="workflow-muted">No finalized attachments.</p>}{canUpload&&<label className="btn btn-secondary live-file-button">{busy?'Working…':'Upload PDF or image'}<input type="file" accept="application/pdf,image/png,image/jpeg" onChange={event=>void upload(event)} disabled={busy}/></label>}{error&&<p className="workflow-note workflow-error">{error}</p>}</section>
+}

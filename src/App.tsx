@@ -5,9 +5,9 @@ import LiveDashboard from './components/live/LiveDashboard'
 import LiveMovementRegister from './components/live/LiveMovementRegister'
 import LiveReceiptRegister from './components/live/LiveReceiptRegister'
 import DemoDataNotice from './components/live/DemoDataNotice'
+import LiveProcurement from './components/live/LiveProcurement'
 
 import InventoryWorkflow from "./components/InventoryWorkflow"
-import PurchaseDocuments from "./components/PurchaseDocuments";
 import DateInput from "./components/DateInput";
 import ClientDocument from "./components/ClientDocument";
 import LoginPage from "./components/LoginPage";
@@ -327,8 +327,6 @@ function InventoryApp({ session, appUser }: { session: User; appUser: AppUser })
 
   const [sidebar, setSidebar] = useState(false)
   const [procurementOpen,setProcurementOpen]=useState(true);
-  const [inspectionOrderId,setInspectionOrderId]=useState("");
-  useEffect(()=>{if(page!=="inspection")setInspectionOrderId("");},[page]);
   useEffect(()=>{if(procurementSteps.some(step=>step.id===page))setProcurementOpen(true);},[page]);
 
   const [workflow, setWorkflow] = useState(() => loadWorkflowState())
@@ -505,26 +503,22 @@ function InventoryApp({ session, appUser }: { session: User; appUser: AppUser })
             <InventoryItemsPage canEdit={canEdit} />
           )}
           {["stock-out", "charges", "trail", "reports", "reconciliation"].includes(page) && <DemoDataNotice />}
-          {[
-            "requests",
-            "inspection",
-            "stock-out",
-          ].includes(page) && (
+          {page === "stock-out" && (
             <InventoryWorkflow
-              key={`${page}-${inspectionOrderId}`}
-              initialOrderId={page==="inspection"?inspectionOrderId:undefined}
+              key={page}
               currentPersonnel={currentPersonnel}
-              section={
-                page as "requests" | "procurement" | "inspection" | "stock-in" | "stock-out"
-              }
+              section="stock-out"
               state={workflow}
               role={role}
               onAction={onWorkflowAction}
               onNavigate={navigate}
             />
           )}
+          {page === "requests" && <LiveProcurement key={page} initialKind="material_request" role={role} />}
+          {page === "purchase-requests" && <LiveProcurement key={page} initialKind="purchase_request" role={role} />}
+          {page === "procurement" && <LiveProcurement key={page} initialKind="purchase_order" role={role} />}
+          {page === "inspection" && <LiveProcurement key={page} initialKind="inspection" role={role} />}
           {page === "stock-in" && <LiveReceiptRegister />}
-          {(page==="purchase-requests"||page==="procurement")&&<PurchaseDocuments key={page} kind={page==="purchase-requests"?"pr":"po"} state={workflow} role={role} currentPersonnel={currentPersonnel} onAction={onWorkflowAction} onNavigate={navigate} onInspectOrder={orderId=>{setInspectionOrderId(orderId);navigate("inspection");}}/>}
           {page === "charges" && (
             <MaterialCharges
               state={workflow}

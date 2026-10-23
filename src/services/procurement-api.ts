@@ -1,8 +1,8 @@
-import type {CommandInput,CommandResult,DashboardDto,DocumentDetail,DocumentKind,DocumentSummary,MovementDto,Page,PageInput,ReferenceDto,ReferenceKind} from '../../functions/src/procurement/contracts'
+import type {CommandInput,CommandKind,CommandResult,DashboardDto,DocumentDetail,DocumentKind,DocumentSummary,MovementDto,Page,PageInput,ReferenceDto,ReferenceKind} from '../../functions/src/procurement/contracts'
 import {callInventoryFunction,InventoryApiError} from './inventory-api'
 const FORBIDDEN=new Set(['tenant','tenantId','tenant_id','actor','actorId','actorUserId','role','roleKey','roles','status','history'])
 function input<T extends Record<string,unknown>>(value:T):T{for(const key of Object.keys(value))if(FORBIDDEN.has(key))throw new InventoryApiError('invalid-argument');return value}
-export type {CommandInput,CommandResult,DashboardDto,DocumentDetail,DocumentKind,DocumentSummary,MovementDto,Page,ReferenceDto,ReferenceKind}
+export type {CommandInput,CommandKind,CommandResult,DashboardDto,DocumentDetail,DocumentKind,DocumentSummary,MovementDto,Page,ReferenceDto,ReferenceKind}
 export interface DocumentListInput extends PageInput{kind:DocumentKind;status?:string}
 export interface DetailInput{kind:DocumentKind;id:string;section?:'lines'|'history'|'related';limit?:number;cursor?:string}
 export interface ReferenceInput extends PageInput{kind:ReferenceKind}
