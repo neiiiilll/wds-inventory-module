@@ -1,4 +1,5 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { canMutateWorkflow, type AppRole } from "../services/access-control"
 
 import {
   money,
@@ -29,7 +30,7 @@ export default function Reconciliation({
   onAction,
 }: {
   state: WorkflowState
-  role: string
+  role: AppRole
   onAction: (a: WorkflowAction) => boolean
 }) {
   const [tab, setTab] = useState<"counts" | "returns">("counts")
@@ -50,9 +51,11 @@ export default function Reconciliation({
       .includes(search.toLowerCase()),
   )
 
-  const canEdit = role !== "Viewer"
+  const canEdit = canMutateWorkflow(role)
+  useEffect(() => { if (!canEdit && mode) setMode("") }, [canEdit, mode])
   const close = () => setMode("")
   const submit = (a: WorkflowAction) => {
+    if (!canEdit) return
     if (onAction(a)) close()
   }
 
@@ -68,16 +71,14 @@ export default function Reconciliation({
           </p>
         </div>
         <div className="page-actions">
-          <WButton
-            secondary
-            disabled={!canEdit}
-            onClick={() => setMode("return")}
-          >
-            ＋ Record return
-          </WButton>
-          <WButton disabled={!canEdit} onClick={() => setMode("count")}>
-            ＋ Physical count
-          </WButton>
+          {canEdit && <>
+            <WButton secondary onClick={() => setMode("return")}>
+              ＋ Record return
+            </WButton>
+            <WButton onClick={() => setMode("count")}>
+              ＋ Physical count
+            </WButton>
+          </>}
         </div>
       </div>
       <WSummary
@@ -176,16 +177,16 @@ export default function Reconciliation({
                         )}
                       </td>
                       <td>
-                        <WButton
+                        {canEdit && <WButton
                           secondary
-                          disabled={!canEdit || !c.variance || !!c.correctedBy}
+                          disabled={!c.variance || !!c.correctedBy}
                           onClick={() => {
                             setSelected(c.id)
                             setMode("correct")
                           }}
                         >
                           Investigate / correct
-                        </WButton>
+                        </WButton>}
                       </td>
                     </tr>
                   ))}
@@ -245,16 +246,15 @@ export default function Reconciliation({
                               <small className="cell-sub">By {t.person}</small>
                             </>
                           ) : (
-                            <WButton
+                            canEdit ? <WButton
                               secondary
-                              disabled={!canEdit}
                               onClick={() => {
                                 setSelected(t.id)
                                 setMode("accept-return")
                               }}
                             >
                               Accept return
-                            </WButton>
+                            </WButton> : <WBadge>Pending</WBadge>
                           )}
                         </td>
                       </tr>
@@ -274,7 +274,7 @@ export default function Reconciliation({
           ? "Count differences do not change inventory until a documented correction is explicitly posted. Previous transactions are retained."
           : "Accepted usable returns restore stock and credit the original issue cost. Damaged returns do not increase usable stock or automatically credit customer charges."}
       </WNote>
-      {mode && (
+      {canEdit && mode && (
         <WModal
           title={
             mode === "count"

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { canMutateWorkflow, type AppRole } from "../services/access-control";
 import type { WorkflowAction, WorkflowState } from "../services/workflow";
 import type { IARFormFields, RISFormFields, StockCardFormFields } from "../services/client-form-types";
 import { blankDocument, buildIarDocument, buildRisDocument, buildStockCardDocument, formTitle, PAPER_SIZES, renderDocumentHtml } from "../services/client-forms";
@@ -14,11 +15,11 @@ const definitions:Record<Kind,FieldDefinition[]>={
   "stock-card":[{key:"unitLabel",label:"Unit measurement label"}],
 };
 
-export default function ClientDocument({kind,id,state,role,onAction,onClose}:{kind:Kind;id:string;state:WorkflowState;role:string;onAction:(a:WorkflowAction)=>boolean;onClose:()=>void}) {
+export default function ClientDocument({kind,id,state,role,onAction,onClose}:{kind:Kind;id:string;state:WorkflowState;role:AppRole;onAction:(a:WorkflowAction)=>boolean;onClose:()=>void}) {
   const [saved,setSaved]=useState<Fields>({});
   const [draft,setDraft]=useState<Fields>(saved);
   const [editing,setEditing]=useState(false);const [width,setWidth]=useState(800);const [ready,setReady]=useState(false);const [printError,setPrintError]=useState("");
-  const frame=useRef<HTMLIFrameElement>(null);const container=useRef<HTMLDivElement>(null);const fieldRoot=useRef<HTMLDivElement>(null);const canEdit=role!=="Viewer";
+  const frame=useRef<HTMLIFrameElement>(null);const container=useRef<HTMLDivElement>(null);const fieldRoot=useRef<HTMLDivElement>(null);const canEdit=canMutateWorkflow(role);
   const linkedDoc=useMemo(()=>kind==="iar"?buildIarDocument(state,id,draft):kind==="ris"?buildRisDocument(state,id,draft):buildStockCardDocument(state,id,draft),[kind,id,state,draft]);
 
   const doc=useMemo(()=>{
@@ -52,14 +53,14 @@ export default function ClientDocument({kind,id,state,role,onAction,onClose}:{ki
   const save=()=>{if(validateFields()&&onAction({type:"form-fields",kind,id,fields:draft}))setSaved(draft);};
   const print=()=>{if(!validateFields())return;setPrintError("");try {const target=frame.current?.contentWindow;if(!target)throw Error("Print preview is still loading.");target.focus();target.print();}catch{setPrintError("Printing is unavailable in this preview. Open the system in your regular browser, then use Print / Save as PDF.");}};
   return <WModal title={formTitle(kind)} onClose={onClose}>
-    <div className="client-document-tools"><div className="client-document-reference"><strong>{doc.reference}</strong><span>Client workbook format</span></div><WButton secondary onClick={()=>setEditing(!editing)}>{editing?"Hide form fields":"Edit form fields"}</WButton><WButton disabled={!ready} onClick={print}>Print / Save as PDF</WButton></div>
+    <div className="client-document-tools"><div className="client-document-reference"><strong>{doc.reference}</strong><span>Client workbook format</span></div>{canEdit&&<WButton secondary onClick={()=>setEditing(!editing)}>{editing?"Hide form fields":"Edit form fields"}</WButton>}<WButton disabled={!ready} onClick={print}>Print / Save as PDF</WButton></div>
     {printError&&<div role="alert" className="workflow-note workflow-error">{printError}</div>}
     {dirty&&<div className="client-document-draft" role="status">{canEdit?"Preview includes unsaved form fields. Save them to retain these details on this record.":"Preview contains unsaved changes."}</div>}
-    {editing&&<section className="client-document-fields"><h3>Document fields</h3><p>Enter the details to include in this form.</p><div className="form-grid" ref={fieldRoot}>{[...common,...definitions[kind]].map(def=>{const raw=String(draft[def.key]??fallback(def.key));const value=def.date&&raw.includes(",")?"":raw;return <WField key={def.key} label={def.label} hint={def.date?"MM/DD/YYYY":undefined}><WInput disabled={!canEdit} type={def.date?"date":"text"} maxLength={def.long?500:160} value={value} onChange={e=>set(def.key,e.target.value)}/></WField>;})}
-      {doc.kind==="iar"&&<><WField label="Inspection statement checkbox"><WSelect disabled={!canEdit} value={doc.inspectionConforms?"yes":"no"} onChange={e=>set("inspectionConforms",e.target.value==="yes")}><option value="yes">Inspected, verified and found in order</option><option value="no">Not checked</option></WSelect></WField><WField label="Acceptance checkbox"><WSelect disabled={!canEdit} value={doc.acceptance} onChange={e=>set("acceptance",e.target.value)}><option value="">Not checked</option><option>Complete</option><option>Partial</option></WSelect></WField></>}
-      {slots.map(slot=><div className="workflow-full" key={slot.id}><WField label={`${slot.label} · printed name`}><WInput disabled={!canEdit} maxLength={160} value={draft.signatures?.[slot.id]?.name??""} onChange={e=>set("signatures",{...draft.signatures,[slot.id]:{name:e.target.value,date:String(draft[slot.dateKey as keyof Fields]??"")}})}/></WField></div>)}
+    {canEdit&&editing&&<section className="client-document-fields"><h3>Document fields</h3><p>Enter the details to include in this form.</p><div className="form-grid" ref={fieldRoot}>{[...common,...definitions[kind]].map(def=>{const raw=String(draft[def.key]??fallback(def.key));const value=def.date&&raw.includes(",")?"":raw;return <WField key={def.key} label={def.label} hint={def.date?"MM/DD/YYYY":undefined}><WInput type={def.date?"date":"text"} maxLength={def.long?500:160} value={value} onChange={e=>set(def.key,e.target.value)}/></WField>;})}
+      {doc.kind==="iar"&&<><WField label="Inspection statement checkbox"><WSelect value={doc.inspectionConforms?"yes":"no"} onChange={e=>set("inspectionConforms",e.target.value==="yes")}><option value="yes">Inspected, verified and found in order</option><option value="no">Not checked</option></WSelect></WField><WField label="Acceptance checkbox"><WSelect value={doc.acceptance} onChange={e=>set("acceptance",e.target.value)}><option value="">Not checked</option><option>Complete</option><option>Partial</option></WSelect></WField></>}
+      {slots.map(slot=><div className="workflow-full" key={slot.id}><WField label={`${slot.label} · printed name`}><WInput maxLength={160} value={draft.signatures?.[slot.id]?.name??""} onChange={e=>set("signatures",{...draft.signatures,[slot.id]:{name:e.target.value,date:String(draft[slot.dateKey as keyof Fields]??"")}})}/></WField></div>)}
     </div>
-      <div className="workflow-form-actions"><WButton secondary onClick={()=>{setDraft(saved);setEditing(false);}}>Discard field edits</WButton><WButton disabled={!canEdit||!dirty} onClick={save}>Save form fields</WButton></div>
+      <div className="workflow-form-actions"><WButton secondary onClick={()=>{setDraft(saved);setEditing(false);}}>Discard field edits</WButton><WButton disabled={!dirty} onClick={save}>Save form fields</WButton></div>
     </section>}
     <div className="client-preview" ref={container}><div style={{width:paperWidth*scale,height:pageHeight*scale,position:"relative",margin:"0 auto"}}><iframe ref={frame} title={`${formTitle(kind)} print preview`} srcDoc={html} sandbox="allow-same-origin allow-modals" style={{width:paperWidth,height:pageHeight,transform:`scale(${scale})`,transformOrigin:"top left",border:0,position:"absolute",left:0,top:0}} onLoad={()=>{const content=frame.current?.contentDocument;const pages=Array.from(content?.querySelectorAll<HTMLElement>(".form-page")??[]);const height=pages.reduce((total,page)=>total+page.getBoundingClientRect().height+parseFloat(content?.defaultView?.getComputedStyle(page).marginBottom??"0"),0);setPageHeight(Math.ceil(Math.max(PAPER_SIZES[doc.paper].height*96/25.4,height))+2);setReady(true);}}/></div></div>
   </WModal>;

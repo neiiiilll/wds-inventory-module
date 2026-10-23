@@ -25,6 +25,12 @@ for (const contract of [
   "version",
 ]) assert.ok(component.includes(contract), `Missing Edge inventory UI contract: ${contract}`)
 
+assert.match(
+  component,
+  /const toggleActive[\s\S]*?if \(!canEdit\) return/,
+  "The live update handler must independently reject read-only sessions.",
+)
+
 assert.ok(app.includes("<InventoryItemsPage"), "The inventory route must render the Edge-backed page.")
 for (const forbidden of ["workflow-repository", "services/supabase", "isSupabaseConfigured", "loadRemoteWorkflow", "saveRemoteWorkflow"])
   assert.equal(app.includes(forbidden), false, `App must not retain direct backend contract: ${forbidden}`)

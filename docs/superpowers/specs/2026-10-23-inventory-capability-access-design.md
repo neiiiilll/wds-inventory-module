@@ -14,13 +14,14 @@ Make the existing database-assigned Inventory roles consistent across navigation
 | Create or update operational workflow records | Yes | Yes | No |
 | Post stock movements | Yes | Yes | No |
 | Change requester/ownership fields | Yes | No | No |
-| Manage application users and roles | Yes | No | No |
+
+User and role administration is intentionally outside the Inventory client API. Assignments continue to be managed in Apps Core by an authorized administrator.
 
 All existing workflow-state locks still apply. A role grants permission to attempt an action; it never bypasses approval sequence, quantity, version, tenant, or document-state validation.
 
 ## Selected approach
 
-Use a centralized capability matrix. Normal workflow pages remain visible to all active roles, while mutation controls are omitted for Viewer and a workspace-level read-only notice explains why. Administrator-only pages are hidden and guarded. A centralized page guard prevents navigation to any page the role cannot read.
+Use a centralized capability matrix. Normal workflow pages remain visible to all active roles, while mutation controls are omitted for Viewer and a workspace-level read-only notice explains why. A centralized page guard prevents navigation to any page the role cannot read.
 
 Alternatives considered:
 
@@ -42,7 +43,7 @@ Alternatives considered:
 - Viewer sees a clear **Read-only access** notice.
 - Mutation buttons and editing affordances are not rendered for Viewer.
 - Read, search, navigation, printing, refresh, and record-detail actions remain available.
-- Inventory Staff has operational mutation controls but not Administrator-only ownership or access-management controls.
+- Inventory Staff has operational mutation controls but not Administrator-only ownership controls.
 - Administrator has all defined capabilities.
 
 ## Validation

@@ -1,15 +1,16 @@
 import { useState } from "react";
+import { canChangeRequester, type AppRole } from "../services/access-control";
 import { WField, WInput, WSelect } from "./WorkflowUI";
 
 export default function RequesterField({ value, role, personnel, onChange }: {
   value: string;
-  role: string;
+  role: AppRole;
   personnel: string[];
   onChange: (name: string) => void;
 }) {
   const [manual, setManual] = useState(false);
   const names = [...new Set([...personnel, value].filter(Boolean))].sort((a, b) => a.localeCompare(b));
-  if (role !== "Administrator") return <WField label="Requesting personnel"><WInput required readOnly value={value}/></WField>;
+  if (!canChangeRequester(role)) return <WField label="Requesting personnel"><WInput required readOnly value={value}/></WField>;
   return <>
     <WField label="Requesting personnel">
       <WSelect required value={manual ? "__custom__" : value} onChange={event => {

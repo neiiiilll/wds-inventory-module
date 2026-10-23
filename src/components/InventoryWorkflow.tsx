@@ -5,6 +5,7 @@ import DeliveryEditor from "./DeliveryEditor";
 import ProcurementSteps from "./ProcurementSteps";
 import ExpectedDeliveries from "./ExpectedDeliveries";
 import RequesterField from "./RequesterField";
+import { canChangeRequester, canMutateWorkflow, type AppRole } from "../services/access-control"
 
 import {
   availability,
@@ -50,7 +51,7 @@ type Props = {
   initialOrderId?: string;
   section: WorkflowSection
   state: WorkflowState
-  role: string
+  role: AppRole
   onAction: (action: WorkflowAction) => boolean
   onNavigate: (section: WorkflowSection|"purchase-requests") => void
 }
@@ -121,7 +122,11 @@ export default function InventoryWorkflow({
   const [deliveryOrderId,setDeliveryOrderId]=useState(initialOrderId??"");
 
   const [ack, setAck] = useState({ person: "", reference: "" })
-  const canEdit = role !== "Viewer"
+  const canEdit = canMutateWorkflow(role)
+
+  useEffect(() => {
+    if (!canEdit && mode && mode !== "print") setMode("")
+  }, [canEdit, mode])
 
   const cfg = config[section]
 
@@ -131,6 +136,7 @@ export default function InventoryWorkflow({
   }
 
   const perform = (action: WorkflowAction) => {
+    if (!canEdit) return false
     const result = onAction(action)
     if (result) setMode("")
     return result
@@ -188,9 +194,9 @@ export default function InventoryWorkflow({
           <p>{cfg.description}</p>
         </div>
         <div className="page-actions">
-          <WButton disabled={section!=="stock-in"&&!canEdit} onClick={() => {if(section==="stock-in"){onNavigate("inspection");return;}setDeliveryOrderId("");setMode("new");}}>
+          {(section === "stock-in" || canEdit) && <WButton onClick={() => {if(section==="stock-in"){onNavigate("inspection");return;}setDeliveryOrderId("");setMode("new");}}>
             {section==="stock-in"?"": "＋ "}{cfg.create}
-          </WButton>
+          </WButton>}
         </div>
       </div>
       {(section==="requests"||section==="procurement"||section==="inspection")&&<ProcurementSteps current={section} onNavigate={onNavigate}/>}
@@ -324,7 +330,7 @@ export default function InventoryWorkflow({
       {!canEdit && (
         <WNote>
           Viewer access · You can inspect records and print documents. Changes
-          require an editable demo role.
+          require Inventory Staff or Administrator access.
         </WNote>
       )}
       {section==="inspection"&&<ExpectedDeliveries onOpenOrders={()=>onNavigate("procurement")} state={state} search={search} canEdit={canEdit} onRecord={orderId=>{setDeliveryOrderId(orderId);setMode("new");}}/>}
@@ -509,7 +515,7 @@ export default function InventoryWorkflow({
               : slips
         ).length === 0 && <WEmpty />}
       </section>
-      {mode === "new" && (
+      {canEdit && mode === "new" && (
         <WModal title={cfg.create} onClose={close}>
           <CreateDocument
             section={section}
@@ -525,7 +531,7 @@ export default function InventoryWorkflow({
         </WModal>
       )}
       {selected && record && mode === "print" && <ClientDocument kind={section==="stock-out"?"ris":"iar"} id={selected} state={state} role={role} onAction={onAction} onClose={()=>setMode("")}/>}
-      {(mode==="edit"||mode==="additional")&&selected&&<WModal title={mode==="edit"?"Edit Material Request / Add Quantities":"Additional Material Request"} onClose={()=>setMode("")}><CreateDocument section="requests" state={state} role={role} currentPersonnel={currentPersonnel} initialRequest={mode==="edit"?state.requests.find(r=>r.id===selected):undefined} additionalTo={mode==="additional"?state.requests.find(r=>r.id===selected):undefined} onClose={()=>setMode("")} onAction={a=>{if(onAction(a))setMode("");}}/></WModal>}
+      {canEdit&&(mode==="edit"||mode==="additional")&&selected&&<WModal title={mode==="edit"?"Edit Material Request / Add Quantities":"Additional Material Request"} onClose={()=>setMode("")}><CreateDocument section="requests" state={state} role={role} currentPersonnel={currentPersonnel} initialRequest={mode==="edit"?state.requests.find(r=>r.id===selected):undefined} additionalTo={mode==="additional"?state.requests.find(r=>r.id===selected):undefined} onClose={()=>setMode("")} onAction={a=>{if(perform(a))setMode("");}}/></WModal>}
       {selected && record && mode !== "new" && mode !== "print" && mode!=="edit" && mode!=="additional" && (
         <WModal
           title={("reference" in record ? record.reference : record.id)??record.id}
@@ -577,7 +583,7 @@ export default function InventoryWorkflow({
                     </div>
                     <MaterialLines state={state} requestId={r.id} />
                     <WNote>{requestLockReason(state,r.id)||"You can edit items, specifications and quantities until this request progresses to PR, PO or RIS. Changing an approved request requires approval again."}</WNote>
-                    <div className="workflow-form-actions"><WButton secondary disabled={!canEdit||!!requestLockReason(state,r.id)} onClick={()=>setMode("edit")}>Edit / Add quantities</WButton>{requestLockReason(state,r.id)&&<WButton secondary disabled={!canEdit} onClick={()=>setMode("additional")}>Additional request</WButton>}{r.approvedBy&&!requestLockReason(state,r.id)&&<WButton onClick={()=>{close();onNavigate("purchase-requests");}}>Prepare Purchase Request →</WButton>}</div>
+                    <div className="workflow-form-actions">{canEdit&&<WButton secondary disabled={!!requestLockReason(state,r.id)} onClick={()=>setMode("edit")}>Edit / Add quantities</WButton>}{canEdit&&requestLockReason(state,r.id)&&<WButton secondary onClick={()=>setMode("additional")}>Additional request</WButton>}{r.approvedBy&&!requestLockReason(state,r.id)&&<WButton onClick={()=>{close();onNavigate("purchase-requests");}}>Prepare Purchase Request →</WButton>}</div>
                     <h3 className="workflow-subtitle">Request history</h3><div className="request-history">{(r.history??[]).map((event,index)=><div className="history-event" key={index}><strong>{event.kind} · {event.actor}</strong><small>{event.legacy?`${event.at} · original recorded date; exact timestamp unavailable`:new Date(event.at).toLocaleString("en-PH",{timeZone:"Asia/Manila"})}</small>{event.reason&&<p>{event.reason}</p>}{event.changes.map((change,n)=><p key={n}>{change.itemId?`${change.itemName??itemName(state,change.itemId)} · `:""}{change.field}: {String(change.before??"—")} → {String(change.after??"—")}</p>)}</div>)}</div>
                     <WNote>
                       Availability is a live stock comparison. No stock is
@@ -702,8 +708,8 @@ export default function InventoryWorkflow({
                     <h3 className="workflow-subtitle">Ordered items and delivery comparison</h3><OrderComparison state={state} order={o}/>
                     <h3 className="workflow-subtitle">This delivery</h3><div className="table-wrap"><table><thead><tr><th>Material</th><th>Expected on PO</th><th>Delivered</th><th>Acceptable</th><th>Damaged</th><th>Other rejected</th><th>Return required</th></tr></thead><tbody>{deliveryLines(state,i).map(l=>{const returned=(state.supplierReturns??[]).filter(r=>r.iarId===i.id&&r.itemId===l.itemId).reduce((n,r)=>n+r.quantity,0);return <tr key={l.itemId}><td>{l.snapshot?.description??itemName(state,l.itemId)}<small className="cell-sub">{l.snapshot?.stockNo??state.items.find(item=>item.id===l.itemId)?.code} · {l.snapshot?.unit??state.items.find(item=>item.id===l.itemId)?.unit}</small></td><td>{orderLines(o).find(n=>n.itemId===l.itemId)?.quantity}</td><td>{l.delivered}</td><td>{l.accepted}</td><td>{l.damaged??"Not separately classified"}</td><td>{l.damaged===undefined?"See findings":l.delivered-l.accepted-l.damaged}</td><td>{Math.max(0,l.delivered-l.accepted-returned)}</td></tr>})}</tbody></table></div>
                     {i.replacesIarId&&<WNote>Replacement for {state.iars.find(r=>r.id===i.replacesIarId)?.reference}</WNote>}
-                    {i.inspectedBy&&deliveryLines(state,i).some(l=>l.delivered>l.accepted)&&<div className="workflow-form-actions"><WButton secondary disabled={!canEdit} onClick={()=>setMode("supplier-return")}>Record return to supplier</WButton></div>}
-                    {mode==="supplier-return"&&<SupplierReturnForm state={state} iarId={i.id} onClose={()=>setMode("")} onAction={perform}/>}
+                    {canEdit&&i.inspectedBy&&deliveryLines(state,i).some(l=>l.delivered>l.accepted)&&<div className="workflow-form-actions"><WButton secondary onClick={()=>setMode("supplier-return")}>Record return to supplier</WButton></div>}
+                    {canEdit&&mode==="supplier-return"&&<SupplierReturnForm state={state} iarId={i.id} onClose={()=>setMode("")} onAction={perform}/>}
                     <WNote>{i.findings}</WNote>
                     <div className="signature-grid">
                       <div>
@@ -797,7 +803,7 @@ export default function InventoryWorkflow({
                 )
               })()}
           </div>
-          {mode === "ack" && (
+          {canEdit && mode === "ack" && (
             <div className="workflow-action-box">
               <WForm
                 onClose={() => setMode("")}
@@ -869,7 +875,7 @@ export default function InventoryWorkflow({
               </WForm>
             </div>
           )}
-          {mode === "cancel" && (
+          {canEdit && mode === "cancel" && (
             <div className="workflow-action-box">
               <WNote>
                 Cancel the outstanding quantities on this RIS? All earlier
@@ -887,7 +893,7 @@ export default function InventoryWorkflow({
               </div>
             </div>
           )}
-          {mode === "release" && (
+          {canEdit && mode === "release" && (
             <div className="workflow-action-box">
               <ReleaseForm
                 state={state}
@@ -902,10 +908,9 @@ export default function InventoryWorkflow({
               <WButton secondary onClick={() => {if(section==="stock-out"||section==="inspection"||section==="stock-in")setMode("print");else window.print();}}>
                 {section==="stock-out"||section==="inspection"||section==="stock-in"?"Client form · Print / Save as PDF":"Print document"}
               </WButton>
-              {section === "requests" &&
+              {canEdit && section === "requests" &&
                 !state.requests.find((r) => r.id === selected)?.approvedBy && (
                   <WButton
-                    disabled={!canEdit}
                     onClick={() => openAck(selected)}
                   >
                     Record Management / GM approval
@@ -930,10 +935,9 @@ export default function InventoryWorkflow({
                   Record / inspect delivery →
                 </WButton>
               )}
-              {section === "inspection" &&
+              {canEdit && section === "inspection" &&
                 !state.iars.find((i) => i.id === selected)?.acceptedBy && (
                   <WButton
-                    disabled={!canEdit}
                     onClick={() => openAck(selected)}
                   >
                     {state.iars.find((i) => i.id === selected)?.inspectedBy
@@ -949,13 +953,12 @@ export default function InventoryWorkflow({
                     View / recover stock receipt →
                   </WButton>
                 )}
-              {section === "stock-in" &&
+              {canEdit && section === "stock-in" &&
                 (() => {
                   const i = state.iars.find((i) => i.id === selected)!
                   return (
                     <WButton
                       disabled={
-                        !canEdit ||
                         !i.acceptedBy ||
                         !!i.postingId ||
                         !i.accepted ||
@@ -981,19 +984,17 @@ export default function InventoryWorkflow({
                     Inspection & acceptance →
                   </WButton>
                 )}
-              {section === "stock-out" &&
+              {canEdit && section === "stock-out" &&
                 !state.ris.find((s) => s.id === selected)?.cancelled && (
                   <>
                     <WButton
                       secondary
-                      disabled={!canEdit}
                       onClick={() => setMode("cancel")}
                     >
                       Cancel outstanding RIS
                     </WButton>
                     <WButton
                       disabled={
-                        !canEdit ||
                         risStatus(
                           state,
                           state.ris.find((s) => s.id === selected)!,
@@ -1084,7 +1085,7 @@ function CreateDocument({
   onClose: () => void
   onAction: (a: WorkflowAction) => void
   initialOrderId?:string;
-  role: string;
+  role: AppRole;
   currentPersonnel: string;
   initialRequest?:MaterialRequest;
   additionalTo?:MaterialRequest;
@@ -1125,7 +1126,7 @@ function CreateDocument({
   const [editVersion]=useState(initialRequest?.editVersion??0);
   const [actor,setActor]=useState(currentPersonnel);const [reason,setReason]=useState("");
 
-  useEffect(()=>{if(role!=="Administrator")setForm(f=>({...f,person:initialRequest?.person??currentPersonnel}));},[role,currentPersonnel,initialRequest?.id]);
+  useEffect(()=>{if(!canChangeRequester(role))setForm(f=>({...f,person:initialRequest?.person??currentPersonnel}));},[role,currentPersonnel,initialRequest?.id]);
 
   const set = (key: keyof typeof form, value: string) =>
     setForm((f) => ({ ...f, [key]: value,...(key==="date"&&!initialRequest?{reference:value?(kind==="delivery"||kind==="ris"?nextFormReference(state,kind==="ris"?"RIS":"IAR",value):nextProcurementReference(state,kind==="request"?"MR":"PO",value)):""}:{}) }))

@@ -45,6 +45,7 @@ export default function InventoryItemsPage({ canEdit }: { canEdit: boolean }) {
   useEffect(() => { void load() }, [search])
 
   const toggleActive = async (item: InventoryItemDto) => {
+    if (!canEdit) return
     if (savingId) return
     setSavingId(item.id)
     setErrorMessage("")

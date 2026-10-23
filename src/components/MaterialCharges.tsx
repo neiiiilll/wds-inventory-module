@@ -1,4 +1,5 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { canMutateWorkflow, type AppRole } from "../services/access-control"
 import {
   materialCostForJob,
   money,
@@ -24,7 +25,7 @@ export default function MaterialCharges({
   onAction,
 }: {
   state: WorkflowState
-  role: string
+  role: AppRole
   onAction: (a: WorkflowAction) => boolean
 }) {
   const jobs = [...new Set(state.requests.map((r) => r.job))]
@@ -49,6 +50,8 @@ export default function MaterialCharges({
   const markup = (net * config.markup) / 100
   const taxable = net + markup + config.fees
   const tax = (taxable * config.tax) / 100
+  const canEdit = canMutateWorkflow(role)
+  useEffect(() => { if (!canEdit && edit) setEdit(false) }, [canEdit, edit])
   return (
     <>
       <div className="page-header">
@@ -205,22 +208,22 @@ export default function MaterialCharges({
               not client tariffs
             </p>
           </div>
-          <WButton
+          {canEdit && <WButton
             secondary
-            disabled={!job || role === "Viewer"}
+            disabled={!job}
             onClick={() => setEdit(!edit)}
           >
             {edit ? "Close rates" : "Configure rates"}
-          </WButton>
+          </WButton>}
         </div>
         <div className="billing-body">
-          {edit && (
+          {canEdit && edit && (
             <BillingForm
               key={job}
               config={config}
               onClose={() => setEdit(false)}
               onSave={(v) => {
-                if (onAction({ type: "billing", ...v })) setEdit(false)
+                if (canEdit && onAction({ type: "billing", ...v })) setEdit(false)
               }}
             />
           )}

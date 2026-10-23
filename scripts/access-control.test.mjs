@@ -20,8 +20,7 @@ assert.equal(module.toAppRole?.("viewer"), "Viewer")
 assert.equal(module.toAppRole?.("owner"), null)
 assert.equal(module.isBootstrapAdministrator, undefined, "Email allowlists must not grant access.")
 assert.equal(module.normalizeDemoAccess, undefined, "Browser demo overrides must not grant access.")
-assert.equal(module.canManageUsers?.("Administrator"), true)
-assert.equal(module.canManageUsers?.("Inventory Staff"), false)
+assert.equal(module.canManageUsers, undefined, "User administration is outside the Inventory client API.")
 assert.equal(module.canMutateWorkflow?.("Inventory Staff"), true)
 assert.equal(module.canMutateWorkflow?.("Viewer"), false)
 assert.equal(module.canChangeRequester?.("Administrator"), true)
@@ -32,7 +31,7 @@ const expectedCapabilities = {
   Administrator: [
     "inventory.read", "inventory.update", "workflow.read", "workflow.mutate",
     "stock.post", "requester.change", "reports.read", "documents.print",
-    "settings.read", "users.manage",
+    "settings.read",
   ],
   "Inventory Staff": [
     "inventory.read", "inventory.update", "workflow.read", "workflow.mutate",
@@ -51,7 +50,6 @@ for (const [role, capabilities] of Object.entries(expectedCapabilities)) {
 assert.equal(module.hasCapability?.("Viewer", "inventory.update"), false)
 assert.equal(module.hasCapability?.("Viewer", "workflow.mutate"), false)
 assert.equal(module.hasCapability?.("Inventory Staff", "requester.change"), false)
-assert.equal(module.hasCapability?.("Inventory Staff", "users.manage"), false)
 assert.equal(module.isReadOnlyRole?.("Viewer"), true)
 assert.equal(module.isReadOnlyRole?.("Inventory Staff"), false)
 assert.equal(module.isReadOnlyRole?.("Administrator"), false)
@@ -63,8 +61,6 @@ for (const page of [
 ]) {
   assert.equal(module.canAccessPage?.("Viewer", page), true, `Viewer should read ${page}`)
 }
-assert.equal(module.canAccessPage?.("Administrator", "user-access"), true)
-assert.equal(module.canAccessPage?.("Inventory Staff", "user-access"), false)
-assert.equal(module.canAccessPage?.("Viewer", "user-access"), false)
+assert.equal(module.APP_PAGES?.includes("user-access"), false, "The client must not advertise unsupported user administration.")
 
 console.log("Access control checks passed.")

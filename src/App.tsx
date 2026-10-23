@@ -10,6 +10,7 @@ import LoginPage from "./components/LoginPage";
 import AccessGate from "./components/AccessGate";
 import Settings from "./components/Settings";
 import InventoryItemsPage from "./components/InventoryItemsPage";
+import { ReadOnlyAccessNotice } from "./components/RoleAccess";
 
 import MaterialCharges from "./components/MaterialCharges"
 
@@ -35,7 +36,13 @@ import {
 } from "./services/report-period"
 import { firebaseAuth, isFirebaseConfigured } from "./services/firebase"
 import { dashboardGreeting, userInitials } from "./services/user-display"
-import { canMutateWorkflow, type AppUser } from "./services/access-control"
+import {
+  canAccessPage,
+  canMutateWorkflow,
+  type AppPage,
+  type AppRole,
+  type AppUser,
+} from "./services/access-control"
 
 import {
   categories,
@@ -44,7 +51,7 @@ import {
   statusFor,
 } from "./services/inventory"
 
-type Page = "dashboard" | "inventory" | "stock-in" | "stock-out" | "transactions" | "trail" | "reports" | "requests" | "purchase-requests" | "procurement" | "inspection" | "charges" | "reconciliation" | "settings"
+type Page = AppPage
 
 type Modal = null | "add" | "edit" | "view" | "stock-in" | "stock-out" | "transaction" | "transaction-detail" | "confirm"
 
@@ -343,6 +350,10 @@ function InventoryApp({ session, appUser }: { session: User; appUser: AppUser })
 
   const canEdit = canMutateWorkflow(role)
 
+  useEffect(() => {
+    if (!canEdit && (modal === "add" || modal === "edit")) setModal(null)
+  }, [canEdit, modal])
+
   const notify = (text: string, kind: "success" | "error" = "success") => {
     setToast({ text, kind })
 
@@ -354,12 +365,25 @@ function InventoryApp({ session, appUser }: { session: User; appUser: AppUser })
       ? action()
       : notify("You do not have permission to perform this action.", "error")
 
+  const navigate = (next: Page) => {
+    if (!canAccessPage(role, next)) {
+      notify("You do not have permission to open this page.", "error")
+      return
+    }
+    setPage(next)
+    setSidebar(false)
+  }
+
+  useEffect(() => {
+    if (!canAccessPage(role, page)) setPage("dashboard")
+  }, [page, role])
+
   const openItem = (item: InventoryItem, next: Modal) => {
     setSelected(item)
     requirePermission(() => {
       if (next === "stock-in" || next === "stock-out") {
         setModal(null)
-        setPage(next)
+        navigate(next)
       } else setModal(next)
     })
   }
@@ -386,7 +410,7 @@ function InventoryApp({ session, appUser }: { session: User; appUser: AppUser })
     requirePermission(() => {
       if (next === "stock-in" || next === "stock-out") {
         setModal(null)
-        setPage(next)
+        navigate(next)
       } else setModal(next)
     })
 
@@ -402,13 +426,12 @@ function InventoryApp({ session, appUser }: { session: User; appUser: AppUser })
         </div>
         <nav className="nav">
           <span className="nav-label">WORKSPACE</span>
-          {nav.map((item) => procurementSteps.some(step=>step.id===item.id)?item.id==="requests"?<div key="procurement-group" className="procurement-nav-group"><button className="nav-item procurement-toggle" aria-expanded={procurementOpen} aria-controls="procurement-submenus" onClick={()=>setProcurementOpen(!procurementOpen)}><Icon name="box"/><span>Procurement</span><span className="procurement-chevron">{procurementOpen?"▾":"▸"}</span></button>{procurementOpen&&<div id="procurement-submenus">{procurementSteps.map(child=><button key={child.id} className={`nav-item nav-subitem ${page===child.id?"active":""}`} onClick={()=>{setPage(child.id);setSidebar(false);}}><Icon name={child.icon}/><span>{child.label}</span></button>)}</div>}</div>:null:(
+          {nav.filter((item) => canAccessPage(role, item.id)).map((item) => procurementSteps.some(step=>step.id===item.id)?item.id==="requests"?<div key="procurement-group" className="procurement-nav-group"><button className="nav-item procurement-toggle" aria-expanded={procurementOpen} aria-controls="procurement-submenus" onClick={()=>setProcurementOpen(!procurementOpen)}><Icon name="box"/><span>Procurement</span><span className="procurement-chevron">{procurementOpen?"▾":"▸"}</span></button>{procurementOpen&&<div id="procurement-submenus">{procurementSteps.filter(child => canAccessPage(role, child.id)).map(child=><button key={child.id} className={`nav-item nav-subitem ${page===child.id?"active":""}`} onClick={()=>navigate(child.id)}><Icon name={child.icon}/><span>{child.label}</span></button>)}</div>}</div>:null:(
             <button
               key={item.id}
               className={`nav-item ${page === item.id ? "active" : ""}`}
               onClick={() => {
-                setPage(item.id)
-                setSidebar(false)
+                navigate(item.id)
               }}
             >
               <Icon name={item.icon} />
@@ -418,7 +441,7 @@ function InventoryApp({ session, appUser }: { session: User; appUser: AppUser })
           ))}
         </nav>
         <div className="sidebar-bottom">
-          <><span className="nav-label">SETTINGS</span><button className={`nav-item ${page === "settings" ? "active" : ""}`} onClick={() => { setPage("settings"); setSidebar(false) }}><Icon name="edit" /><span>Settings</span>{page === "settings" && <i />}</button></>
+          <><span className="nav-label">SETTINGS</span><button className={`nav-item ${page === "settings" ? "active" : ""}`} onClick={() => navigate("settings")}><Icon name="edit" /><span>Settings</span>{page === "settings" && <i />}</button></>
           <div className="side-user">
             <div className="avatar">{currentInitials}</div>
             <div>
@@ -469,12 +492,13 @@ function InventoryApp({ session, appUser }: { session: User; appUser: AppUser })
           </div>
         </header>
         <div className="content">
+          <ReadOnlyAccessNotice role={role} />
           {page === "dashboard" && (
             <Dashboard
               items={items}
               transactions={transactions}
               currentPersonnel={currentPersonnel}
-              onNavigate={setPage}
+              onNavigate={navigate}
               onView={showItem}
             />
           )}
@@ -486,7 +510,7 @@ function InventoryApp({ session, appUser }: { session: User; appUser: AppUser })
                 subtitle="Follow materials from maintenance request to job cost."
               />
               <div className="workflow-overview-grid">
-                <button onClick={() => setPage("requests")}>
+                <button onClick={() => navigate("requests")}>
                   <span>Material requests</span>
                   <strong>
                     {
@@ -497,14 +521,14 @@ function InventoryApp({ session, appUser }: { session: User; appUser: AppUser })
                   </strong>
                   <small>Open requirements →</small>
                 </button>
-                <button onClick={() => setPage("inspection")}>
+                <button onClick={() => navigate("inspection")}>
                   <span>Inspection & acceptance</span>
                   <strong>
                     {workflow.iars.filter((i) => !i.acceptedBy).length}
                   </strong>
                   <small>Pending acknowledgments →</small>
                 </button>
-                <button onClick={() => setPage("stock-in")}>
+                <button onClick={() => navigate("stock-in")}>
                   <span>Accepted receipts</span>
                   <strong>
                     {
@@ -515,7 +539,7 @@ function InventoryApp({ session, appUser }: { session: User; appUser: AppUser })
                   </strong>
                   <small>Ready for stock-in →</small>
                 </button>
-                <button onClick={() => setPage("charges")}>
+                <button onClick={() => navigate("charges")}>
                   <span>Issued material cost</span>
                   <strong>
                     {money(workflow.releases.reduce((s, r) => s + r.value, 0))}
@@ -544,10 +568,10 @@ function InventoryApp({ session, appUser }: { session: User; appUser: AppUser })
               state={workflow}
               role={role}
               onAction={onWorkflowAction}
-              onNavigate={setPage}
+              onNavigate={navigate}
             />
           )}
-          {(page==="purchase-requests"||page==="procurement")&&<PurchaseDocuments key={page} kind={page==="purchase-requests"?"pr":"po"} state={workflow} role={role} currentPersonnel={currentPersonnel} onAction={onWorkflowAction} onNavigate={setPage} onInspectOrder={orderId=>{setInspectionOrderId(orderId);setPage("inspection");}}/>}
+          {(page==="purchase-requests"||page==="procurement")&&<PurchaseDocuments key={page} kind={page==="purchase-requests"?"pr":"po"} state={workflow} role={role} currentPersonnel={currentPersonnel} onAction={onWorkflowAction} onNavigate={navigate} onInspectOrder={orderId=>{setInspectionOrderId(orderId);navigate("inspection");}}/>}
           {page === "charges" && (
             <MaterialCharges
               state={workflow}
@@ -570,7 +594,7 @@ function InventoryApp({ session, appUser }: { session: User; appUser: AppUser })
                 setSelectedTx(tx)
                 setModal("transaction-detail")
               }}
-              onNew={() => requirePermission(() => setPage("reconciliation"))}
+              onNew={() => requirePermission(() => navigate("reconciliation"))}
             />
           )}
           {page === "trail" && <StockTrail transactions={transactions} />}
@@ -583,7 +607,7 @@ function InventoryApp({ session, appUser }: { session: User; appUser: AppUser })
           )}
         </div>
       </main>
-      {modal === "add" && (
+      {canEdit && modal === "add" && (
         <ItemForm
           onClose={() => setModal(null)}
           onSave={(item) => {
@@ -602,7 +626,7 @@ function InventoryApp({ session, appUser }: { session: User; appUser: AppUser })
           }}
         />
       )}
-      {modal === "edit" && selected && (
+      {canEdit && modal === "edit" && selected && (
         <ItemForm
           item={selected}
           onClose={() => setModal(null)}
@@ -982,9 +1006,9 @@ function Inventory({
         title="Inventory"
         description="Manage materials, equipment, tools, and meters."
         actions={
-          <Button icon="plus" onClick={onAdd}>
+          canEdit ? <Button icon="plus" onClick={onAdd}>
             Add Item
-          </Button>
+          </Button> : null
         }
       />
       <section className="panel inventory-panel">
@@ -1079,27 +1103,17 @@ function Inventory({
                         <button title="View item" onClick={() => onView(item)}>
                           <Icon name="eye" />
                         </button>
-                        <button
-                          title="Edit item"
-                          disabled={!canEdit}
-                          onClick={() => onAction(item, "edit")}
-                        >
-                          <Icon name="edit" />
-                        </button>
-                        <button
-                          title="Stock in"
-                          disabled={!canEdit}
-                          onClick={() => onAction(item, "stock-in")}
-                        >
-                          <Icon name="in" />
-                        </button>
-                        <button
-                          title="Stock out"
-                          disabled={!canEdit || item.quantity === 0}
-                          onClick={() => onAction(item, "stock-out")}
-                        >
-                          <Icon name="out" />
-                        </button>
+                        {canEdit && <>
+                          <button title="Edit item" onClick={() => onAction(item, "edit")}>
+                            <Icon name="edit" />
+                          </button>
+                          <button title="Stock in" onClick={() => onAction(item, "stock-in")}>
+                            <Icon name="in" />
+                          </button>
+                          <button title="Stock out" disabled={item.quantity === 0} onClick={() => onAction(item, "stock-out")}>
+                            <Icon name="out" />
+                          </button>
+                        </>}
                       </div>
                     </td>
                   </tr>
@@ -2194,7 +2208,7 @@ function ItemDetails({
   onAction,
 }: {
   state: WorkflowState;
-  role: string;
+  role: AppRole;
   onFields: (action:WorkflowAction)=>boolean;
   item: InventoryItem
   transactions: InventoryTransaction[]
@@ -2230,29 +2244,17 @@ function ItemDetails({
             <Button variant="secondary" onClick={() => setPrintCard(true)}>
               Stock Card · Print
             </Button>
-            <Button
-              variant="secondary"
-              disabled={!canEdit}
-              onClick={() => onAction("edit")}
-              icon="edit"
-            >
-              Edit Item
-            </Button>
-            <Button
-              variant="secondary"
-              disabled={!canEdit}
-              onClick={() => onAction("stock-out")}
-              icon="out"
-            >
-              Stock Out
-            </Button>
-            <Button
-              disabled={!canEdit}
-              onClick={() => onAction("stock-in")}
-              icon="in"
-            >
-              Stock In
-            </Button>
+            {canEdit && <>
+              <Button variant="secondary" onClick={() => onAction("edit")} icon="edit">
+                Edit Item
+              </Button>
+              <Button variant="secondary" onClick={() => onAction("stock-out")} icon="out">
+                Stock Out
+              </Button>
+              <Button onClick={() => onAction("stock-in")} icon="in">
+                Stock In
+              </Button>
+            </>}
           </div>
         </div>
         <div className="detail-grid">

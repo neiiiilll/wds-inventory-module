@@ -31,7 +31,7 @@ export default function ExpectedDeliveries({ state, search, canEdit, onRecord, o
           <td>{line.snapshot?.unit ?? state.items.find(i => i.id === line.itemId)?.unit}</td>
           <td>{totals.ordered}</td><td>{totals.originalDelivered}</td><td>{totals.undelivered}</td><td>{totals.replacementPending}</td>
           <td>{index === 0 && <><WBadge>{purchaseOrderDeliveryStatus(state, order)}</WBadge><small className="cell-sub">{purchaseOrderProcessingStatus(state, order)}</small></>}</td>
-          <td>{index === 0 && receivable && (canReceiveOrder(order) ? <WButton secondary disabled={!canEdit} onClick={() => onRecord(order.id)}>Record delivery</WButton>:<WButton secondary onClick={onOpenOrders}>Record dispatch →</WButton>)}</td>
+          <td>{index === 0 && receivable && (canReceiveOrder(order) ? canEdit && <WButton secondary onClick={() => onRecord(order.id)}>Record delivery</WButton>:<WButton secondary onClick={onOpenOrders}>Record dispatch →</WButton>)}</td>
         </tr>;
       }))}</tbody>
     </table>{!orders.length && <div className="empty">No outstanding purchase orders match.</div>}</div>

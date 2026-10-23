@@ -13,7 +13,6 @@ export const APP_CAPABILITIES = [
   "reports.read",
   "documents.print",
   "settings.read",
-  "users.manage",
 ] as const
 
 export type AppCapability = (typeof APP_CAPABILITIES)[number]
@@ -33,14 +32,16 @@ export const APP_PAGES = [
   "charges",
   "reconciliation",
   "settings",
-  "user-access",
 ] as const
 
 export type AppPage = (typeof APP_PAGES)[number]
 
+const defineCapabilities = (...capabilities: AppCapability[]): readonly AppCapability[] =>
+  Object.freeze(capabilities)
+
 const ROLE_CAPABILITIES: Readonly<Record<AppRole, readonly AppCapability[]>> = Object.freeze({
-  Administrator: Object.freeze([...APP_CAPABILITIES]),
-  "Inventory Staff": Object.freeze([
+  Administrator: defineCapabilities(...APP_CAPABILITIES),
+  "Inventory Staff": defineCapabilities(
     "inventory.read",
     "inventory.update",
     "workflow.read",
@@ -49,14 +50,14 @@ const ROLE_CAPABILITIES: Readonly<Record<AppRole, readonly AppCapability[]>> = O
     "reports.read",
     "documents.print",
     "settings.read",
-  ]),
-  Viewer: Object.freeze([
+  ),
+  Viewer: defineCapabilities(
     "inventory.read",
     "workflow.read",
     "reports.read",
     "documents.print",
     "settings.read",
-  ]),
+  ),
 })
 
 const PAGE_CAPABILITY: Readonly<Record<AppPage, AppCapability>> = Object.freeze({
@@ -74,7 +75,6 @@ const PAGE_CAPABILITY: Readonly<Record<AppPage, AppCapability>> = Object.freeze(
   charges: "workflow.read",
   reconciliation: "workflow.read",
   settings: "settings.read",
-  "user-access": "users.manage",
 })
 
 export interface AppUser {
@@ -110,7 +110,6 @@ export const canAccessPage = (role: AppRole, page: AppPage): boolean =>
 export const isReadOnlyRole = (role: AppRole): boolean =>
   !hasCapability(role, "inventory.update") && !hasCapability(role, "workflow.mutate")
 
-export const canManageUsers = (role: AppRole): boolean => hasCapability(role, "users.manage")
 export const canMutateWorkflow = (role: AppRole): boolean => hasCapability(role, "workflow.mutate")
 export const canChangeRequester = (role: AppRole): boolean => hasCapability(role, "requester.change")
 export const canPrint = (role: AppRole): boolean => hasCapability(role, "documents.print")

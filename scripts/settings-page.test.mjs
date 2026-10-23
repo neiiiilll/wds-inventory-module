@@ -15,7 +15,7 @@ assert.ok(settings.includes("onSignOut"), "Settings must provide a working sign-
 assert.ok(app.includes('"settings"'), "Settings must be an application route.")
 assert.ok(app.includes('page === "settings"'), "The application must render the Settings route.")
 assert.ok(app.includes("<Settings"), "The Settings route must render the account settings component.")
-assert.ok(app.includes("setPage(\"settings\")"), "The sidebar Settings button must navigate to Settings.")
-assert.equal(/canManageUsers\(role\)[\s\S]{0,180}setPage\("settings"\)/.test(app), false, "Settings navigation must be available to every active role.")
+assert.ok(app.includes("navigate(\"settings\")"), "The sidebar Settings button must navigate through the centralized access guard.")
+assert.equal(/canManageUsers\(role\)[\s\S]{0,180}navigate\("settings"\)/.test(app), false, "Settings navigation must be available to every active role.")
 
 console.log("Settings page checks passed.")

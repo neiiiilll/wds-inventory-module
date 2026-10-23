@@ -16,7 +16,7 @@
 - Tenant and role continue to come only from Apps Core authorization records resolved by `inventory-api`.
 - Viewer retains read, search, navigation, detail, report, audit-history, refresh, and print access.
 - Viewer receives no mutation control and application mutation handlers still reject Viewer.
-- Inventory Staff cannot change requester/ownership fields or manage users and roles.
+- Inventory Staff cannot change requester/ownership fields. User administration remains outside the Inventory client API.
 - Service Desk, `svc_*` tables, and Firebase `serviceDesk` are untouched.
 - No client secret or service-role credential is added to the React bundle.
 
@@ -38,11 +38,11 @@
 
 **Interfaces:**
 - Produces: `AppCapability`, `AppPage`, `hasCapability(role, capability)`, `canAccessPage(role, page)`, and `isReadOnlyRole(role)`
-- Preserves: `canManageUsers`, `canMutateWorkflow`, `canChangeRequester`, and `canPrint` as capability-backed helpers
+- Preserves: `canMutateWorkflow`, `canChangeRequester`, and `canPrint` as capability-backed helpers
 
 - [ ] **Step 1: Write failing matrix tests**
 
-Assert every role/capability result, Viewer read-only state, all current read pages, and rejection of an Administrator-only page by Staff and Viewer.
+Assert every role/capability result, Viewer read-only state, and all current read pages.
 
 - [ ] **Step 2: Run the focused test and verify expected failure**
 
