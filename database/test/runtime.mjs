@@ -51,7 +51,9 @@ export async function createTestDatabase() {
     const target = await realpath(dir)
     const workspace = await realpath(root)
     if (path.dirname(target) !== workspace || !path.basename(target).startsWith(".tmp-inventory-db-")) throw new Error("Unsafe test directory cleanup refused")
-    await rm(target, { recursive: true })
+    // Windows may briefly retain the stopped server's log handle. Retry only
+    // transient removal failures, still bounded to this verified test folder.
+    await rm(target, { recursive: true, maxRetries: 10, retryDelay: 100 })
   }
   try {
     console.error("[inventory-db-test] initializing isolated cluster")
