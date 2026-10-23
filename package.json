@@ -9,11 +9,12 @@
     "test:edge": "npx --yes deno test --allow-env --allow-net supabase/functions/tests",
     "test:functions": "npm --prefix functions test",
     "build:functions": "npm --prefix functions run build",
+    "verify:production-config": "node scripts/production-env.test.mjs",
     "emulators:rollback": "npm run build:functions && firebase emulators:start --project apps-workspace-b61a9 --only auth,functions,hosting",
     "build": "vite build",
     "deploy:edge": "npx supabase functions deploy inventory-api --project-ref oqsgzdkljtxtpwdzptnw --no-verify-jwt",
     "deploy:functions:rollback": "npm run build:functions && firebase deploy --project apps-workspace-b61a9 --only functions:inventory",
-    "deploy:hosting": "npm run build && firebase deploy --project apps-workspace-b61a9 --only hosting:app",
+    "deploy:hosting": "npm run verify:production-config && npm run build && firebase deploy --project apps-workspace-b61a9 --only hosting:app",
     "preview": "vite preview",
     "format": "oxfmt"
   },
