@@ -18,7 +18,7 @@ export interface StockMovementLineInput { lineNo: number; itemId: string; locati
 export interface PostStockMovementInput { movementType: "receipt" | "issue" | "transfer" | "adjustment" | "return" | "writeoff"; sourceType?: string; sourceReference?: string; idempotencyKey: string; notes?: string; lines: StockMovementLineInput[] }
 export interface PostStockMovementResponse { movementId: string; postedAt: string; replayed: boolean }
 
-type InventoryFunctionName = "provisionInventoryAccess" | "listInventoryItems" | "updateInventoryItem" | "createMaterialRequest" | "postStockMovement"
+export type InventoryFunctionName = "provisionInventoryAccess" | "listInventoryItems" | "updateInventoryItem" | "createMaterialRequest" | "postStockMovement" | "getInventoryDashboard" | "listProcurementDocuments" | "getProcurementDocument" | "getProcurementReferenceData" | "listInventoryMovements" | "executeProcurementCommand" | "createProcurementAttachmentUpload" | "finalizeProcurementAttachment" | "getProcurementAttachmentDownload"
 
 export async function callInventoryFunction<I, O>(name: InventoryFunctionName, input: I): Promise<O> {
   if (!firebaseAuth?.currentUser) throw new InventoryApiError("unauthenticated")

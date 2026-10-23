@@ -126,10 +126,10 @@ Read RPCs receive server-derived `p_tenant_id` and `p_actor_user_id`, plus allow
 
 **Interfaces:** export one typed wrapper per new operation using existing `callInventoryFunction`; extend its operation union without introducing a second API. `useLiveInventoryResource(key, loader)` returns loading/error/data/reload, discards stale sessions/requests, and subscribes to allowlisted invalidations. `executeProcurementCommand` preserves a single idempotency key per user submission/retry and resolves only after server success.
 
-- [ ] Write failing tests proving all wrappers invoke `inventory` in `asia-southeast1`, omit undefined fields but keep intentional null, reject client tenancy/authority, preserve decimal strings and map safe errors.
-- [ ] Write delayed-response tests proving user/tenant change discards old reads and clears modal/draft state, and rejected commands leave forms open with inputs intact. Test duplicate-click suppression and retry key reuse.
-- [ ] Implement wrappers/hooks without localStorage/demo imports or Supabase service credentials; client may only use signed attachment transfer URLs.
-- [ ] Run focused client tests, existing application regressions and `tsc --noEmit`; commit.
+- [x] Write failing tests proving all wrappers invoke `inventory` in `asia-southeast1`, omit undefined fields but keep intentional null, reject client tenancy/authority, preserve decimal strings and map safe errors.
+- [x] Write delayed-response tests proving user/tenant change discards old reads and clears modal/draft state, and rejected commands leave forms open with inputs intact. Test duplicate-click suppression and retry key reuse.
+- [x] Implement wrappers/hooks without localStorage/demo imports or Supabase service credentials; client may only use signed attachment transfer URLs.
+- [x] Run focused client tests, existing application regressions and `tsc --noEmit`; commit.
 
 ### Task 8: Live Dashboard and movement/receipt drill-down
 
