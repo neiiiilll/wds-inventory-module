@@ -5,7 +5,7 @@ import type { AccessLookup } from "../_shared/access.ts"
 import type { InventoryItemDto, InventoryRole } from "../_shared/contracts.ts"
 import { ApiError } from "../_shared/errors.ts"
 import type { FirebaseIdentity } from "../_shared/firebase-auth.ts"
-import { listInventoryItems, updateInventoryItem, type InventoryDependencies, type InventoryRepository, type ListQuery, type UpdateItemChanges } from "../_shared/inventory.ts"
+import { INVENTORY_ITEM_SELECT, listInventoryItems, updateInventoryItem, type InventoryDependencies, type InventoryRepository, type ListQuery, type UpdateItemChanges } from "../_shared/inventory.ts"
 
 const identity: FirebaseIdentity = { uid: "firebase-1", email: "user@example.test", emailVerified: true, displayName: "User" }
 const item: InventoryItemDto = {
@@ -14,6 +14,12 @@ const item: InventoryItemDto = {
   unitId: "50000000-0000-0000-0000-000000000001", unitName: "Each", unitSymbol: "ea",
   supplierId: null, minimumQuantity: 2, quantity: 8, active: true, version: 3,
 }
+
+test("inventory item relationships do not depend on environment-specific constraint names", () => {
+  assert.match(INVENTORY_ITEM_SELECT, /category:inv_categories\(name\)/)
+  assert.match(INVENTORY_ITEM_SELECT, /unit:inv_units\(name,symbol\)/)
+  assert.doesNotMatch(INVENTORY_ITEM_SELECT, /!inv_inventory_items_(category|unit)_fk/)
+})
 
 function accessLookup(roleKey: InventoryRole): AccessLookup {
   return {

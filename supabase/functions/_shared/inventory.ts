@@ -5,10 +5,10 @@ import type { InventoryItemDto, ListItemsResponse } from "./contracts.ts"
 import { ConflictError, InputError } from "./errors.ts"
 import type { FirebaseIdentity } from "./firebase-auth.ts"
 
-const ITEM_SELECT = [
+export const INVENTORY_ITEM_SELECT = [
   "id", "item_code", "name", "description", "category_id", "unit_id", "supplier_id", "minimum_quantity", "active", "version",
-  "category:inv_categories!inv_inventory_items_category_fk(name)",
-  "unit:inv_units!inv_inventory_items_unit_fk(name,symbol)",
+  "category:inv_categories(name)",
+  "unit:inv_units(name,symbol)",
 ].join(",")
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const LIST_KEYS = new Set(["search", "limit", "cursor"])
@@ -134,7 +134,7 @@ async function quantities(client: SupabaseClient, tenantId: string, itemIds: str
 export function createInventoryRepository(client: SupabaseClient): InventoryRepository {
   return {
     async list(tenantId, input) {
-      let request = client.from("inv_inventory_items").select(ITEM_SELECT).eq("tenant_id", tenantId).order("item_code", { ascending: true }).order("id", { ascending: true }).limit(input.limit + 1)
+      let request = client.from("inv_inventory_items").select(INVENTORY_ITEM_SELECT).eq("tenant_id", tenantId).order("item_code", { ascending: true }).order("id", { ascending: true }).limit(input.limit + 1)
       if (input.search) {
         const pattern = `%${input.search.replace(/[\\%_]/g, "\\$&")}%`
         request = request.or(`item_code.ilike.${filterValue(pattern)},name.ilike.${filterValue(pattern)}`)
@@ -151,7 +151,7 @@ export function createInventoryRepository(client: SupabaseClient): InventoryRepo
       return { items: page.map((row) => mapItem(row, totals.get(row.id) ?? 0)), nextCursor: fetched.length > input.limit && page.length ? encodeCursor(page[page.length - 1]) : null }
     },
     async update(tenantId, id, expectedVersion, changes) {
-      const { data, error } = await client.from("inv_inventory_items").update({ ...changes, version: expectedVersion + 1 }).eq("tenant_id", tenantId).eq("id", id).eq("version", expectedVersion).select(ITEM_SELECT).maybeSingle()
+      const { data, error } = await client.from("inv_inventory_items").update({ ...changes, version: expectedVersion + 1 }).eq("tenant_id", tenantId).eq("id", id).eq("version", expectedVersion).select(INVENTORY_ITEM_SELECT).maybeSingle()
       if (error) throw new Error(error.message)
       if (!data) return null
       const row = data as unknown as ItemRow
