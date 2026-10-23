@@ -8,7 +8,6 @@ export interface ProvisionAccessResponse {
   displayName: string
   tenantKey: string | null
   roleKey: InventoryRole | null
-  refreshToken: boolean
 }
 
 export interface ListItemsInput { search?: string; limit?: number; cursor?: string }

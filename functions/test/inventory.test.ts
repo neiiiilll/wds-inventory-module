@@ -3,7 +3,7 @@ import test from "node:test"
 import type { CallableRequest } from "firebase-functions/v2/https"
 import { logger } from "firebase-functions"
 import { listInventoryItemsHandler, updateInventoryItemHandler, createInventoryRepository } from "../src/inventory"
-import { listInventoryItems, updateInventoryItem } from "../src/index"
+import { inventory } from "../src/index"
 import { request, lookup, rejectsCode, tenantId, itemId } from "./helpers"
 
 const row = { id: itemId, item_code: "PUMP-001", name: "Pump", description: null, category_id: itemId, unit_id: itemId, supplier_id: null, minimum_quantity: "2", active: true, version: 3, category: { name: "Motors" }, unit: [{ name: "Each", symbol: "ea" }] }
@@ -98,11 +98,18 @@ test("update repository predicates tenant, id and expected version, with server 
   assert.ok(f.queries[1].calls.some((c) => JSON.stringify(c) === JSON.stringify(["eq", "tenant_id", tenantId])))
   assert.equal(await database(null).repository.update(tenantId, itemId, 3, { active: false }), null)
 })
-test("registered inventory callables reject missing auth and malformed claims before secrets", async (t) => {
+test("catalog joins use live relationships without environment-specific constraint names", async () => {
+  const f = database()
+  await f.repository.list(tenantId, { limit: 10, search: null, cursor: null })
+  const select = f.queries[0].calls.find(call => call[0] === "select")
+  assert.ok(select)
+  assert.ok(String(select[1]).includes("category:inv_categories(name)"))
+  assert.ok(String(select[1]).includes("unit:inv_units(name,symbol)"))
+  assert.equal(String(select[1]).includes("!inv_inventory_items_"), false)
+})
+test("single inventory callable rejects missing auth and unverified email before secrets", async (t) => {
   t.mock.method(logger, "error", () => {})
-  for (const callable of [listInventoryItems, updateInventoryItem]) {
-    await assert.rejects(callable.run({ data: null } as CallableRequest<unknown>), { code: "unauthenticated" })
-    const req = request(null); delete req.auth!.token.tenant_id
-    await assert.rejects(callable.run(req), { code: "permission-denied" })
-  }
+  await assert.rejects(inventory.run({ data: null } as CallableRequest<unknown>), { code: "unauthenticated" })
+  const req = request(null); req.auth!.token.email_verified = false
+  await assert.rejects(inventory.run(req), { code: "permission-denied" })
 })

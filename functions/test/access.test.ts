@@ -46,18 +46,18 @@ test("returns immutable database context with allowed-role priority", async () =
 })
 
 for (const claim of [undefined, null, "", "inventory-test", 12, {}, [tenantId], "11111111-1111-1111-1111-11111111111z", otherTenantId]) {
-  test(`denies missing, malformed or mismatched tenant UUID: ${JSON.stringify(claim)}`, async () => {
+  test(`tenant claims cannot override database authority: ${JSON.stringify(claim)}`, async () => {
     const req = request(null)
     req.auth!.token.tenant_id = claim
-    await assert.rejects(requireAccess(req, "inventory", ["viewer"], lookup()), { code: "permission-denied", message: "Inventory access is not permitted." })
+    assert.equal((await requireAccess(req, "inventory", ["viewer"], lookup())).tenantId, tenantId)
   })
 }
 
-test("tenant_key cannot replace the tenant_id claim", async () => {
+test("database tenancy does not depend on either Firebase tenant claim", async () => {
   const req = request(null)
   delete req.auth!.token.tenant_id
   req.auth!.token.tenant_key = "inventory-test"
-  await assert.rejects(requireAccess(req, "inventory", ["viewer"], lookup()), { code: "permission-denied" })
+  assert.equal((await requireAccess(req, "inventory", ["viewer"], lookup())).tenantId, tenantId)
 })
 
 const deniedLookups = {

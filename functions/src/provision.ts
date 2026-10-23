@@ -1,5 +1,4 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
-import type { Auth } from "firebase-admin/auth"
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https"
 import { createSupabaseAccessLookup, denyAccess, isTenantUuid } from "./access"
 import { INVENTORY_ROLES, type ProvisionAccessResponse } from "./contracts"
@@ -20,7 +19,6 @@ export interface ProvisionRepository {
 }
 export interface ProvisionDependencies {
   repository: ProvisionRepository
-  auth: Pick<Auth, "getUser" | "setCustomUserClaims">
 }
 
 export function createProvisionRepository(client: SupabaseClient): ProvisionRepository {
@@ -65,16 +63,12 @@ export async function provisionInventoryAccessHandler(
   const record = await deps.repository.resolve(uid)
   if (!record) denyAccess()
   if (!record.userActive) {
-    return { status: "disabled", firebaseUid: record.firebaseUid, email: record.email, displayName: record.displayName, tenantKey: null, roleKey: null, refreshToken: false }
+    return { status: "disabled", firebaseUid: record.firebaseUid, email: record.email, displayName: record.displayName, tenantKey: null, roleKey: null }
   }
   const roleKey = INVENTORY_ROLES.find((role) => record.roleKeys.includes(role))
   if (record.firebaseUid !== uid || record.membershipCount !== 1 || !record.membershipId || record.membershipStatus !== "active" || !record.tenantActive || !isTenantUuid(record.tenantId) || !record.tenantKey || !roleKey || new Set(record.roleKeys).size !== record.roleKeys.length) denyAccess()
-  const adminUser = await deps.auth.getUser(uid)
-  const claims = adminUser.customClaims ?? {}
-  const needsWrite = claims.tenant_id !== record.tenantId
-  if (needsWrite) await deps.auth.setCustomUserClaims(uid, { ...claims, tenant_id: record.tenantId })
   return {
     status: "active", firebaseUid: record.firebaseUid, email: record.email, displayName: record.displayName,
-    tenantKey: record.tenantKey, roleKey, refreshToken: needsWrite || token.tenant_id !== record.tenantId,
+    tenantKey: record.tenantKey, roleKey,
   }
 }

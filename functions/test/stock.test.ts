@@ -3,7 +3,7 @@ import test from "node:test"
 import { logger } from "firebase-functions"
 import type { CallableRequest } from "firebase-functions/v2/https"
 import { postStockMovementHandler, createStockRepository } from "../src/stock"
-import { postStockMovement } from "../src/index"
+import { inventory } from "../src/index"
 import { request, lookup, rejectsCode, tenantId, itemId } from "./helpers"
 
 const result = { movementId: itemId, postedAt: "2026-10-22T10:00:00.000Z", replayed: false }
@@ -50,5 +50,5 @@ test("stock repository preserves atomic idempotent replay and safe domain errors
 })
 test("registered stock callable authenticates before secrets", async (t) => {
   t.mock.method(logger, "error", () => {})
-  await assert.rejects(postStockMovement.run({ data: null } as CallableRequest<unknown>), { code: "unauthenticated" })
+  await assert.rejects(inventory.run({ data: { operation: "postStockMovement", input: {} } } as CallableRequest<unknown>), { code: "unauthenticated" })
 })

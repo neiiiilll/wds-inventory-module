@@ -3,7 +3,7 @@ import test from "node:test"
 import { logger } from "firebase-functions"
 import type { CallableRequest } from "firebase-functions/v2/https"
 import { createMaterialRequestHandler, createMaterialRequestRepository } from "../src/material-requests"
-import { createMaterialRequest } from "../src/index"
+import { inventory } from "../src/index"
 import { request, lookup, rejectsCode, tenantId, itemId } from "./helpers"
 
 const result = { requestId: itemId, requestNo: "MR-202610-000001", version: 1, status: "draft" as const }
@@ -45,5 +45,5 @@ test("request repository uses the atomic RPC and maps cross-tenant references sa
 })
 test("registered request callable authenticates before secrets", async (t) => {
   t.mock.method(logger, "error", () => {})
-  await assert.rejects(createMaterialRequest.run({ data: null } as CallableRequest<unknown>), { code: "unauthenticated" })
+  await assert.rejects(inventory.run({ data: { operation: "createMaterialRequest", input: {} } } as CallableRequest<unknown>), { code: "unauthenticated" })
 })

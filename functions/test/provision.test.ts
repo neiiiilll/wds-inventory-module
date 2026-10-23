@@ -1,10 +1,9 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import type { Auth, UserRecord } from "firebase-admin/auth"
 import type { CallableRequest } from "firebase-functions/v2/https"
 import { logger } from "firebase-functions"
 import { createProvisionRepository, provisionInventoryAccessHandler, type ProvisionDependencies, type ProvisionRecord } from "../src/provision"
-import { provisionInventoryAccess } from "../src/index"
+import { inventory } from "../src/index"
 
 const tenantId = "11111111-1111-4111-8111-111111111111"
 const active: ProvisionRecord = {
@@ -17,27 +16,23 @@ function request(data: unknown = {}, token: Record<string, unknown> = {}): Calla
   return { data, auth: { uid: "firebase-1", token: { email: "user@example.test", email_verified: true, ...token } } } as CallableRequest<unknown>
 }
 
-function dependencies(record: ProvisionRecord | null = active, claims: Record<string, unknown> = {}) {
+function dependencies(record: ProvisionRecord | null = active) {
   const writes: Array<{ uid: string; claims: Record<string, unknown> }> = []
   let resolutions = 0
   const deps: ProvisionDependencies = {
     repository: { async resolve(uid) { assert.equal(uid, "firebase-1"); resolutions++; return record } },
-    auth: {
-      async getUser(uid) { assert.equal(uid, "firebase-1"); return { customClaims: claims } as UserRecord },
-      async setCustomUserClaims(uid, customClaims) { writes.push({ uid, claims: customClaims }) },
-    } as Pick<Auth, "getUser" | "setCustomUserClaims">,
   }
   return { deps, writes, get resolutions() { return resolutions } }
 }
 
 test("callable rejects missing auth before requiring database secrets", async (t) => {
   t.mock.method(logger, "error", () => {})
-  await assert.rejects(provisionInventoryAccess.run({ data: {} } as CallableRequest<unknown>), { code: "unauthenticated" })
+  await assert.rejects(inventory.run({ data: {} } as CallableRequest<unknown>), { code: "unauthenticated" })
 })
 
 test("callable rejects unverified email before requiring database secrets", async (t) => {
   t.mock.method(logger, "error", () => {})
-  await assert.rejects(provisionInventoryAccess.run(request({}, { email_verified: false })), { code: "permission-denied" })
+  await assert.rejects(inventory.run(request({}, { email_verified: false })), { code: "permission-denied" })
 })
 
 test("requires authentication", async () => {
@@ -73,33 +68,22 @@ test("missing users cannot enroll and missing explicit roles cannot be repaired"
 test("inactive users retain the disabled DTO without claiming access", async () => {
   const fixture = dependencies({ ...active, userActive: false })
   const response = await provisionInventoryAccessHandler(request(), fixture.deps)
-  assert.deepEqual(response, { status: "disabled", firebaseUid: "firebase-1", email: "user@example.test", displayName: "Inventory User", tenantKey: null, roleKey: null, refreshToken: false })
+  assert.deepEqual(response, { status: "disabled", firebaseUid: "firebase-1", email: "user@example.test", displayName: "Inventory User", tenantKey: null, roleKey: null })
   assert.deepEqual(fixture.writes, [])
 })
 
-test("sets the database tenant UUID and preserves unrelated custom claims", async () => {
-  const fixture = dependencies(active, { support: true, feature_flag: "on" })
+test("resolves database access without requesting Firebase Admin credentials or claim changes", async () => {
+  const fixture = dependencies(active)
   const response = await provisionInventoryAccessHandler(request(), fixture.deps)
-  assert.deepEqual(fixture.writes, [{ uid: "firebase-1", claims: { support: true, feature_flag: "on", tenant_id: tenantId } }])
-  assert.deepEqual(response, { status: "active", firebaseUid: "firebase-1", email: "user@example.test", displayName: "Inventory User", tenantKey: "inventory-test", roleKey: "viewer", refreshToken: true })
-})
-
-test("replaces stale Admin claims even when the request token is current", async () => {
-  const fixture = dependencies(active, { tenant_id: "22222222-2222-4222-8222-222222222222", support: true })
-  const response = await provisionInventoryAccessHandler(request({}, { tenant_id: tenantId }), fixture.deps)
-  assert.deepEqual(fixture.writes, [{ uid: "firebase-1", claims: { tenant_id: tenantId, support: true } }])
-  assert.equal(response.refreshToken, true)
-})
-
-test("stale request tokens request refresh without rewriting current Admin claims", async () => {
-  const fixture = dependencies(active, { tenant_id: tenantId })
-  assert.equal((await provisionInventoryAccessHandler(request(), fixture.deps)).refreshToken, true)
   assert.deepEqual(fixture.writes, [])
+  assert.deepEqual(response, { status: "active", firebaseUid: "firebase-1", email: "user@example.test", displayName: "Inventory User", tenantKey: "inventory-test", roleKey: "viewer" })
 })
 
-test("current Admin and request claims need neither write nor refresh", async () => {
-  const fixture = dependencies(active, { tenant_id: tenantId })
-  assert.equal((await provisionInventoryAccessHandler(request({}, { tenant_id: tenantId }), fixture.deps)).refreshToken, false)
+test("stale tenant and Service Desk claims do not alter Inventory access", async () => {
+  const fixture = dependencies(active)
+  const response = await provisionInventoryAccessHandler(request({}, { tenant_id: "22222222-2222-4222-8222-222222222222", client_id: "service-desk-client" }), fixture.deps)
+  assert.equal(response.tenantKey, "inventory-test")
+  assert.equal(Object.hasOwn(response, "refreshToken"), false)
   assert.deepEqual(fixture.writes, [])
 })
 

@@ -12,16 +12,19 @@ const environment = Object.fromEntries(source
   }))
 
 assert.equal(
-  environment.VITE_SUPABASE_URL,
-  "https://oqsgzdkljtxtpwdzptnw.supabase.co",
-  "Production Hosting must call the Apps Core Supabase project.",
+  environment.VITE_FIREBASE_PROJECT_ID,
+  "apps-workspace-b61a9",
+  "Production Hosting must call the approved Firebase Inventory project.",
 )
-assert.ok(environment.VITE_SUPABASE_PUBLISHABLE_KEY, "The browser-safe Apps Core publishable key is required.")
-assert.doesNotMatch(environment.VITE_SUPABASE_PUBLISHABLE_KEY, /service_role|secret/i)
-
-const response = await fetch(`${environment.VITE_SUPABASE_URL}/auth/v1/settings`, {
-  headers: { apikey: environment.VITE_SUPABASE_PUBLISHABLE_KEY },
-})
-assert.equal(response.ok, true, "The configured publishable key must be accepted by Apps Core.")
-
-console.log("Production browser configuration targets Apps Core with a valid publishable key.")
+for (const name of ["VITE_FIREBASE_API_KEY", "VITE_FIREBASE_AUTH_DOMAIN", "VITE_FIREBASE_APP_ID", "VITE_FIREBASE_MESSAGING_SENDER_ID", "VITE_FIREBASE_STORAGE_BUCKET"]) {
+  assert.ok(environment[name], `Missing browser Firebase configuration: ${name}`)
+}
+assert.equal(environment.VITE_FIREBASE_AUTH_DOMAIN, "apps-workspace-b61a9.firebaseapp.com")
+const apiSource = await readFile(new URL("../src/services/inventory-api.ts", import.meta.url), "utf8")
+assert.match(apiSource, /getFunctions\(firebaseApp, "asia-southeast1"\)/)
+assert.match(apiSource, /"inventory"/)
+assert.doesNotMatch(apiSource, /VITE_SUPABASE|invokeInventoryEdge/)
+for (const [name, value] of Object.entries(environment)) {
+  if (name.startsWith("VITE_")) assert.doesNotMatch(value, /sb_secret_|BEGIN (?:RSA |EC )?PRIVATE KEY|"type"\s*:\s*"service_account"/)
+}
+console.log("Production browser configuration targets the Firebase inventory callable.")

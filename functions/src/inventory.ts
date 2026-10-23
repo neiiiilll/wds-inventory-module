@@ -7,8 +7,8 @@ import type { CallableRequest } from "firebase-functions/v2/https"
 
 const ITEM_SELECT = [
   "id", "item_code", "name", "description", "category_id", "unit_id", "supplier_id", "minimum_quantity", "active", "version",
-  "category:inv_categories!inv_inventory_items_category_fk(name)",
-  "unit:inv_units!inv_inventory_items_unit_fk(name,symbol)",
+  "category:inv_categories(name)",
+  "unit:inv_units(name,symbol)",
 ].join(",")
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const LIST_KEYS = new Set(["search", "limit", "cursor"])

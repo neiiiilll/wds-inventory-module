@@ -31,4 +31,4 @@ const readme = await readFile(new URL("../supabase/README.md", import.meta.url),
 assert.match(readme, /canonical Inventory API/i)
 assert.match(readme, /oqsgzdkljtxtpwdzptnw/)
 assert.doesNotMatch(readme, /tehynsbnasihzktzvyzy/)
-console.log("Canonical Supabase Edge source and configuration checks passed.")
+console.log("Retained Supabase Edge source and configuration checks passed.")

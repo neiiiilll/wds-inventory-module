@@ -74,15 +74,13 @@ export async function requireAccess(
 ): Promise<AccessContext> {
   if (!request.auth) throw new HttpsError("unauthenticated", "Sign in to continue.")
   if (request.auth.token.email_verified !== true) denyAccess()
-  const claim = request.auth.token.tenant_id
-  if (!isTenantUuid(claim)) denyAccess()
   const user = await lookup.findUser(request.auth.uid)
   if (!user?.active) denyAccess()
   const memberships = await lookup.listMemberships(user.id)
   if (memberships.length !== 1 || memberships[0].status !== "active") denyAccess()
   const membership = memberships[0]
   const tenant = await lookup.findTenant(membership.tenantId)
-  if (!tenant?.active || tenant.id !== membership.tenantId || tenant.id !== claim.toLowerCase()) denyAccess()
+  if (!tenant?.active || !isTenantUuid(tenant.id) || tenant.id !== membership.tenantId) denyAccess()
   const roles = await lookup.listRoles(membership.id, appKey)
   const keys = roles.map((role) => role.roleKey)
   if (new Set(keys).size !== keys.length) denyAccess()

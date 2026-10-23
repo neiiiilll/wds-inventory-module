@@ -1,5 +1,6 @@
-import { firebaseAuth } from "./firebase"
-import { InventoryApiError, invokeInventoryEdge } from "./inventory-http"
+import { getFunctions, httpsCallable } from "firebase/functions"
+import { firebaseApp, firebaseAuth } from "./firebase"
+import { InventoryApiError, toInventoryCallableError } from "./inventory-http"
 
 export { InventoryApiError } from "./inventory-http"
 export type { InventoryApiErrorCode } from "./inventory-http"
@@ -20,14 +21,16 @@ export interface PostStockMovementResponse { movementId: string; postedAt: strin
 type InventoryFunctionName = "provisionInventoryAccess" | "listInventoryItems" | "updateInventoryItem" | "createMaterialRequest" | "postStockMovement"
 
 export async function callInventoryFunction<I, O>(name: InventoryFunctionName, input: I): Promise<O> {
-  const user = firebaseAuth?.currentUser
-  if (!user) throw new InventoryApiError("unauthenticated")
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, "") ?? ""
-  return invokeInventoryEdge<I, O>({
-    endpoint: supabaseUrl ? `${supabaseUrl}/functions/v1/inventory-api` : "",
-    publishableKey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "",
-    getIdToken: () => user.getIdToken(),
-  }, name, input)
+  if (!firebaseAuth?.currentUser) throw new InventoryApiError("unauthenticated")
+  if (!firebaseApp) throw new InventoryApiError("internal")
+  try {
+    // The Firebase SDK attaches the signed-in user's ID token automatically.
+    const invoke = httpsCallable<{ operation: InventoryFunctionName; input: I }, O>(getFunctions(firebaseApp, "asia-southeast1"), "inventory")
+    return (await invoke({ operation: name, input })).data
+  } catch (error) {
+    // Only expose our own safe messages, never remote SQL or secret details.
+    throw toInventoryCallableError(error)
+  }
 }
 
 export const provisionInventoryAccess = () => callInventoryFunction<Record<string, never>, ProvisionAccessResponse>("provisionInventoryAccess", {})

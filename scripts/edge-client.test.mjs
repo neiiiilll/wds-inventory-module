@@ -84,28 +84,6 @@ await assert.rejects(http.invokeInventoryEdge(transport({ async getIdToken() { r
 await assert.rejects(http.invokeInventoryEdge(transport({ async getIdToken() { throw new Error("expired credential") }, async fetchImpl() { fetched = true } }), "listInventoryItems", {}), error => error.code === "unauthenticated")
 assert.equal(fetched, false)
 
-const apiRequests = []
-const api = evaluate(apiSource, {
-  "./firebase": { firebaseAuth: { currentUser: { getIdToken: async () => "token" } } },
-  "./inventory-http": {
-    InventoryApiError: http.InventoryApiError,
-    invokeInventoryEdge: async (receivedTransport, action, input) => {
-      apiRequests.push({ receivedTransport, action, input })
-      return { marker: action }
-    },
-  },
-}, {
-  VITE_SUPABASE_URL: "https://oqsgzdkljtxtpwdzptnw.supabase.co/",
-  VITE_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_test",
-})
-for (const name of ["provisionInventoryAccess", "listInventoryItems", "updateInventoryItem", "createMaterialRequest", "postStockMovement"]) {
-  const input = { fixture: name }
-  assert.deepEqual(await api[name](input), { marker: name })
-  assert.equal(apiRequests.at(-1).action, name)
-  assert.deepEqual(apiRequests.at(-1).input, name === "provisionInventoryAccess" ? {} : input)
-  assert.equal(apiRequests.at(-1).receivedTransport.endpoint, "https://oqsgzdkljtxtpwdzptnw.supabase.co/functions/v1/inventory-api")
-}
-
 const roles = evaluate(accessControl)
 const events = []
 const service = evaluate(userAccess, {
@@ -122,7 +100,8 @@ assert.equal((await service.provisionCurrentUser()).role, "Viewer")
 assert.deepEqual(events, ["provision"])
 
 assert.doesNotMatch(firebase, /firebase\/functions|getFunctions|firebaseFunctions/)
-assert.doesNotMatch(apiSource, /firebase\/functions|httpsCallable|tenantId|tenant_id/)
+assert.match(apiSource, /httpsCallable/)
+assert.doesNotMatch(apiSource, /invokeInventoryEdge|tenantId|tenant_id/)
 assert.doesNotMatch(userAccess, /refreshToken|getIdToken|\.\/firebase/)
 assert.match(envExample, /VITE_SUPABASE_URL=https:\/\/oqsgzdkljtxtpwdzptnw\.supabase\.co/)
 assert.match(envExample, /VITE_SUPABASE_PUBLISHABLE_KEY=/)
@@ -134,4 +113,4 @@ for (const source of [firebase, httpSource, apiSource, userAccess, envExample, e
 }
 await access(new URL("../src/services/inventory-http.ts", import.meta.url))
 
-console.log("Supabase Edge client transport, safe errors, and database-authority access checks passed.")
+console.log("Retained Edge rollback transport and database-authority access checks passed.")

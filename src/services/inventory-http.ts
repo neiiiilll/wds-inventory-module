@@ -39,6 +39,13 @@ function safeCode(value: unknown): InventoryApiErrorCode {
     : "internal"
 }
 
+/** Maps Firebase callable failures into the Inventory UI's safe error vocabulary. */
+export function toInventoryCallableError(error: unknown): InventoryApiError {
+  if (error instanceof InventoryApiError) return error
+  const code = error && typeof error === "object" && "code" in error ? error.code : null
+  return new InventoryApiError(safeCode(typeof code === "string" && code.startsWith("functions/") ? code.slice("functions/".length) : null))
+}
+
 export async function invokeInventoryEdge<I, O>(
   transport: InventoryEdgeTransport,
   action: string,
