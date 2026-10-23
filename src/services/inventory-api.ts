@@ -1,11 +1,36 @@
-import { firebaseAuth } from "./firebase"
-import { InventoryApiError, invokeInventoryEdge } from "./inventory-http"
+import { httpsCallable } from "firebase/functions"
+import { firebaseAuth, firebaseFunctions } from "./firebase"
 
-export { InventoryApiError } from "./inventory-http"
-export type { InventoryApiErrorCode } from "./inventory-http"
+export type InventoryApiErrorCode =
+  | "unauthenticated"
+  | "permission-denied"
+  | "invalid-argument"
+  | "not-found"
+  | "already-exists"
+  | "failed-precondition"
+  | "aborted"
+  | "internal"
+
+const SAFE_MESSAGES: Record<InventoryApiErrorCode, string> = {
+  unauthenticated: "Sign in again to continue.",
+  "permission-denied": "You do not have permission to perform this action.",
+  "invalid-argument": "Check the entered information and try again.",
+  "not-found": "The requested inventory record was not found.",
+  "already-exists": "That inventory record already exists.",
+  "failed-precondition": "The inventory operation cannot be completed in its current state.",
+  aborted: "This record changed. Refresh it and try again.",
+  internal: "The inventory service could not complete the request. Try again.",
+}
+
+export class InventoryApiError extends Error {
+  constructor(readonly code: InventoryApiErrorCode, message = SAFE_MESSAGES[code]) {
+    super(message)
+    this.name = "InventoryApiError"
+  }
+}
 
 export type InventoryRoleKey = "administrator" | "inventory_staff" | "viewer"
-export interface ProvisionAccessResponse { status: "active" | "disabled"; firebaseUid: string; email: string; displayName: string; tenantKey: string | null; roleKey: InventoryRoleKey | null }
+export interface ProvisionAccessResponse { status: "active" | "disabled"; firebaseUid: string; email: string; displayName: string; tenantKey: string | null; roleKey: InventoryRoleKey | null; refreshToken: boolean }
 export interface InventoryItemDto { id: string; itemCode: string; name: string; description: string | null; categoryId: string; categoryName: string; unitId: string; unitName: string; unitSymbol: string | null; supplierId: string | null; minimumQuantity: number; quantity: number; active: boolean; version: number }
 export interface ListItemsInput { search?: string; limit?: number; cursor?: string }
 export interface ListItemsResponse { items: InventoryItemDto[]; nextCursor: string | null }
@@ -17,16 +42,19 @@ export interface StockMovementLineInput { lineNo: number; itemId: string; locati
 export interface PostStockMovementInput { movementType: "receipt" | "issue" | "transfer" | "adjustment" | "return" | "writeoff"; sourceType?: string; sourceReference?: string; idempotencyKey: string; notes?: string; lines: StockMovementLineInput[] }
 export interface PostStockMovementResponse { movementId: string; postedAt: string; replayed: boolean }
 
-export async function callInventoryFunction<I, O>(name: string, input: I): Promise<O> {
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, "")
-  const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
-  const user = firebaseAuth?.currentUser
-  if (!user) throw new InventoryApiError("unauthenticated")
-  return invokeInventoryEdge<I, O>({
-    endpoint: supabaseUrl ? `${supabaseUrl}/functions/v1/inventory-api` : "",
-    publishableKey: publishableKey ?? "",
-    getIdToken: () => user.getIdToken(),
-  }, name, input)
+type InventoryFunctionName = "provisionInventoryAccess" | "listInventoryItems" | "updateInventoryItem" | "createMaterialRequest" | "postStockMovement"
+
+export async function callInventoryFunction<I, O>(name: InventoryFunctionName, input: I): Promise<O> {
+  if (!firebaseAuth?.currentUser) throw new InventoryApiError("unauthenticated")
+  if (!firebaseFunctions) throw new InventoryApiError("internal")
+  try {
+    const response = await httpsCallable<I, O>(firebaseFunctions, name)(input)
+    return response.data
+  } catch (error) {
+    const code = error && typeof error === "object" && "code" in error ? error.code : undefined
+    const shortCode = typeof code === "string" && code.startsWith("functions/") ? code.slice("functions/".length) : "internal"
+    throw new InventoryApiError(Object.prototype.hasOwnProperty.call(SAFE_MESSAGES, shortCode) ? shortCode as InventoryApiErrorCode : "internal")
+  }
 }
 
 export const provisionInventoryAccess = () => callInventoryFunction<Record<string, never>, ProvisionAccessResponse>("provisionInventoryAccess", {})

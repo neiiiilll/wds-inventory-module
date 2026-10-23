@@ -1,8 +1,20 @@
 import { InventoryApiError, provisionInventoryAccess } from "./inventory-api"
 import { toAppRole, type AppRole, type AppUser } from "./access-control"
+import { firebaseAuth } from "./firebase"
 
 export async function provisionCurrentUser(): Promise<AppUser> {
-  const response = await provisionInventoryAccess()
+  let response = await provisionInventoryAccess()
+  if (response.refreshToken) {
+    const user = firebaseAuth?.currentUser
+    if (!user) throw new InventoryApiError("unauthenticated")
+    try {
+      await user.getIdToken(true)
+    } catch {
+      throw new InventoryApiError("unauthenticated")
+    }
+    response = await provisionInventoryAccess()
+    if (response.refreshToken) throw new InventoryApiError("permission-denied")
+  }
   const role = toAppRole(response.roleKey)
   if (response.status === "active" && !role) throw new InventoryApiError("permission-denied")
   const timestamp = new Date().toISOString()
@@ -21,7 +33,7 @@ export async function provisionCurrentUser(): Promise<AppUser> {
 
 export const loadCurrentUser = provisionCurrentUser
 
-// User administration is not part of the inventory Edge API surface.
+// User administration is not part of the inventory callable API surface.
 export async function listAppUsers(): Promise<AppUser[]> { return [] }
 
 export async function setAppUserAccess(_input: {

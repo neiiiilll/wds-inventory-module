@@ -38,9 +38,9 @@ supabase test db
 
 Never paste the original introspection dump into SQL Editor. Never repair a deployed change by dropping shared objects or editing applied migration files. Create a new forward migration and coordinate any shared-table change.
 
-## Supabase Edge Function configuration
+## Supabase Edge Function configuration (rollback-only)
 
-The Edge runtime receives `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` from Supabase automatically. Configure only the Firebase project identifier and allowed browser origins:
+The following noncanonical configuration is retained only for the previous client during the rollback window. New releases use Firebase callables; do not redeploy Edge as the active API. The existing Edge runtime receives `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` from Supabase automatically. Its retained settings are:
 
 ```sh
 npx supabase secrets set FIREBASE_PROJECT_ID=apps-workspace-b61a9 --project-ref tehynsbnasihzktzvyzy
@@ -49,18 +49,35 @@ npx supabase secrets set INVENTORY_ALLOWED_ORIGINS=https://app-invb61a9.web.app,
 
 For local execution, create ignored `supabase/functions/.env.local` values and run `supabase functions serve inventory-api --no-verify-jwt --env-file supabase/functions/.env.local`. Automatic role assignment is disabled. Create test users, memberships, and explicit inventory roles through an administrative process before signing in.
 
-The gateway JWT check is disabled because the bearer token is a Firebase ID token. The handler itself verifies its RS256 signature, issuer, audience, lifetime, and UID before routing an action. Deploy Edge before Hosting:
+The gateway JWT check is disabled because the bearer token is a Firebase ID token. The old handler verifies its RS256 signature, issuer, audience, lifetime, and UID. Only if restoring an older compatible release requires reconstructing its endpoint, the historical command is:
 
 ```sh
 npx supabase functions deploy inventory-api --project-ref tehynsbnasihzktzvyzy --no-verify-jwt
-firebase deploy --project apps-workspace-b61a9 --only hosting:app
 ```
 
-Test repeated login to confirm the assigned role is preserved. Confirm a new or unassigned account is denied without creating records, then suspend an existing membership and confirm the next Edge request is denied. Repeat with a valid ID from another tenant and confirm the response does not disclose its existence.
+Keep the existing Edge deployment and its settings live until production acceptance and an explicit retirement decision. Before Hosting cutover, failed callable smoke tests leave the old client on Edge. After cutover, restore the previous compatible Hosting release first while Edge remains live. Never remove migrations or RPCs for this rollback.
+
+## Canonical Firebase callable deployment
+
+The active API uses second-generation Functions on Node.js 22 in `asia-southeast1`. Set both server-only secrets interactively in Firebase Secret Manager:
+
+```sh
+firebase functions:secrets:set SUPABASE_URL --project apps-workspace-b61a9
+firebase functions:secrets:set SUPABASE_SERVICE_ROLE_KEY --project apps-workspace-b61a9
+npm run test:functions
+npm run build:functions
+npm run deploy:functions
+```
+
+Deploy Functions before Hosting; complete callable smoke tests before `npm run deploy:hosting`. Both secrets are bound to every callable. Use `npm run emulators` and ignored `functions/.secret.local` with disposable database credentials for local tests; see [functions/README.md](../functions/README.md) for explicit SDK emulator connections, inputs/outputs, role checks, and smoke harness.
+
+Provisioning synchronizes `tenant_id` to the authorized database tenant UUID. A `refreshToken` response causes one browser token refresh before access is retried. Business calls recheck the membership and claim on every request. Automatic role assignment is disabled; fixtures require existing users, memberships, and explicit roles.
+
+Smoke-test assigned/unassigned accounts, verified email, disabled/revoked memberships, Viewer mutation denial, version conflicts, material requests, and idempotent stock replay. Perform the cross-tenant test with two users and known item/location/personnel/asset identifiers; prove tenant A cannot access tenant B and failures do not reveal existence. Test mixed valid/invalid batches and confirm full transaction rollback.
 
 ## RLS and service-role boundary
 
-Every `inv_*` table has RLS enabled and intentionally has no policies, so browser/anonymous/authenticated access is deny-all. The service role bypasses RLS. Therefore every Edge action must verify access and add the authorized tenant filter even though RLS is enabled; RLS is defense against accidental direct clients, not the authorization boundary for service-role code.
+Every `inv_*` table has RLS enabled and intentionally has no policies, so browser/anonymous/authenticated access is deny-all. The service role bypasses RLS. Therefore every callable must verify access and add the authorized tenant filter even though RLS is enabled; RLS is defense against accidental direct clients, not the authorization boundary for service-role code.
 
 The transaction RPCs are executable only by `service_role`. `inv_next_document_number` locks the counter through `INSERT ... ON CONFLICT DO UPDATE`; `inv_post_stock_movement` validates all tenant-owned references and updates movement rows, balances, versions, and audit records in one database transaction.
 

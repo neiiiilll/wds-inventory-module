@@ -10,8 +10,9 @@ try {
   if (error?.code !== "ENOENT") throw error
 }
 
-assert.ok(gate.includes("provisionCurrentUser"), "The gate must provision through the verified Edge API.")
-assert.equal(access.includes("getIdToken(true)"), false, "Claim-free provisioning must not force a Firebase token refresh.")
+assert.ok(gate.includes("provisionCurrentUser"), "The gate must provision through the verified callable API.")
+assert.ok(access.includes("getIdToken(true)"), "Changed tenant claims must force a Firebase token refresh.")
+assert.ok(access.includes("refreshToken"), "Provisioning must honor the server refresh flag.")
 assert.ok(gate.includes("Your access has been disabled"), "Inactive accounts need a clear blocked state.")
 assert.ok(gate.includes("Access could not be verified"), "Retryable access failures need a clear error state.")
 assert.ok(gate.includes('window.addEventListener("focus"'), "Access must refresh when the browser regains focus.")

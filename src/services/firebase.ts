@@ -1,5 +1,6 @@
 import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app"
 import { getAuth, GoogleAuthProvider, type Auth } from "firebase/auth"
+import { getFunctions, type Functions } from "firebase/functions"
 
 const config = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY as string | undefined,
@@ -20,5 +21,7 @@ export const firebaseApp: FirebaseApp | null = isFirebaseConfigured
   : null
 
 export const firebaseAuth: Auth | null = firebaseApp ? getAuth(firebaseApp) : null
+const functionsRegion = import.meta.env.VITE_FIREBASE_FUNCTIONS_REGION || "asia-southeast1"
+export const firebaseFunctions: Functions | null = firebaseApp ? getFunctions(firebaseApp, functionsRegion) : null
 export const googleProvider = new GoogleAuthProvider()
 

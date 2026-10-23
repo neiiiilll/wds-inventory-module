@@ -27,4 +27,7 @@ assert.match(source, /INVENTORY_ALLOWED_ORIGINS/)
 assert.doesNotMatch(source, /INVENTORY_BOOTSTRAP_TENANT_KEY|ensureViewer/)
 assert.doesNotMatch(source, /setCustomUserClaims|tenant_key.*claim/i)
 
-console.log("Supabase Edge Function source and configuration checks passed.")
+// Retained source is a rollback artifact; canonical deployment uses Firebase Functions.
+const readme = await readFile(new URL("../supabase/README.md", import.meta.url), "utf8")
+assert.match(readme, /rollback-only/)
+console.log("Rollback-only Supabase Edge source and configuration checks passed.")
