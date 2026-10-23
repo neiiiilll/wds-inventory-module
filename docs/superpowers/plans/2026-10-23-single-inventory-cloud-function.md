@@ -74,6 +74,36 @@ Firebase created `inventory` as ACTIVE in `asia-southeast1` on Node.js 22, with 
 
 The approved `npm run deploy:hosting` release succeeded. Hosting returns HTTP 200 and references `assets/index-D5pt5781.js`; the live JavaScript SHA256 exactly matches the verified local production build. React now uses the Firebase `inventory` callable. Supabase Edge remains deployed for explicit rollback only. Canonical comparison of all recorded `serviceDesk` deployment metadata before and after the release found no differences.
 
-Live authenticated sign-in, tenant A/B isolation and role acceptance still require controlled signed-in users. The successful transport checks and unit suites are not represented as a completed live authenticated database test.
+Live authenticated acceptance was subsequently completed with the existing Google Administrator and Viewer test accounts; see the follow-up evidence below.
 
 The CLI also reported that the regional Artifact Registry repository has no cleanup policy. No `--force` cleanup policy was applied to this shared repository.
+
+## Authenticated live acceptance — 2026-10-23
+
+Tests used the real deployed Firebase `inventory` callable in `asia-southeast1`, the React callable SDK, existing Google sign-in sessions, and controlled sample records in two distinct Apps Core tenants. No user tokens were extracted, no memberships or claims were changed, and no IAM changes were made. Read-only database checks independently established and verified the sample baseline.
+
+Administrator: **6 passed, 0 failed**.
+
+- Current active Administrator membership resolved correctly.
+- Unfiltered list returned only Tenant A's sample and no further page.
+- Searching Tenant B's known sample code returned zero items.
+- Supplying a client `tenant_id` was rejected with `invalid-argument`.
+- A real own-tenant name edit persisted and was visible in a fresh API read; the original name and active status were restored. The optimistic version legitimately advanced from 1 to 3.
+- Updating Tenant B's known item ID with its correct baseline version was rejected with `aborted`, without disclosing or modifying that record.
+
+Viewer: **8 passed, 0 failed**.
+
+- Current active Viewer membership resolved correctly.
+- Unfiltered list returned only Tenant B's sample and no further page.
+- Searching Tenant A's known sample code returned zero items.
+- Supplying a client `tenant_id` was rejected with `invalid-argument`.
+- Direct own-tenant and cross-tenant item update requests both returned `permission-denied`.
+- Direct material-request and stock-movement calls returned `permission-denied` before mutation payload validation.
+
+Final read-only database verification confirmed two distinct tenants, original sample names/statuses, Administrator sample version 3 and Viewer sample version 1, and unchanged Administrator/Viewer assignments. The tests did not post stock movements or create material requests. Service Desk was not deployed or modified.
+
+Testing exposed an empty-search transport bug: the Firebase SDK encodes optional `undefined` properties as `null`, which the strict backend correctly rejects. The client now JSON-normalizes the operation envelope, omitting undefined object fields while preserving deliberate null changes. A regression exercises the real Firebase SDK encoder, not just a mocked wrapper. The normal Administrator Inventory page subsequently loaded its sample and edit action successfully after refreshing its previously cached HTML.
+
+The temporary acceptance page used privately entered fixture identifiers, contained no bundled account/tenant mappings, and was removed from the final app entrypoint. Local screenshot evidence records both completed test tables. These results cover the deployed Inventory API and live Inventory List, not migration of Dashboard/procurement browser-demo data to the database.
+
+Final verification: `npm test` passed all application checks, 50 retained Edge tests and 149 Functions tests; `tsc --noEmit` passed. `npm run deploy:hosting` completed successfully with `assets/index-CPz3MKaQ.js`, confirmed in the deployed page DOM. A bundle scan confirmed the temporary acceptance route was absent. The final Viewer Inventory page displayed only Tenant B's sample at version 1 with no edit action. No Cloud Function deployment, secret update, IAM change, database migration or Service Desk change was performed in this follow-up.

@@ -26,7 +26,10 @@ export async function callInventoryFunction<I, O>(name: InventoryFunctionName, i
   try {
     // The Firebase SDK attaches the signed-in user's ID token automatically.
     const invoke = httpsCallable<{ operation: InventoryFunctionName; input: I }, O>(getFunctions(firebaseApp, "asia-southeast1"), "inventory")
-    return (await invoke({ operation: name, input })).data
+    // Preserve the API's JSON contract: omit optional undefined fields while
+    // retaining deliberate null changes. Firebase otherwise encodes them as null.
+    const envelope = JSON.parse(JSON.stringify({ operation: name, input })) as { operation: InventoryFunctionName; input: I }
+    return (await invoke(envelope)).data
   } catch (error) {
     // Only expose our own safe messages, never remote SQL or secret details.
     throw toInventoryCallableError(error)
