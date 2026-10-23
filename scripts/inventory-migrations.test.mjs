@@ -6,7 +6,7 @@ const migrationNames = (await readdir(migrationsUrl))
   .filter((name) => name.endsWith(".sql"))
   .sort()
 
-assert.deepEqual(migrationNames, [
+const canonicalNames = [
   "20261014000000_inventory_schema.sql",
   "20261019000000_role_based_access.sql",
   "20261022000100_inventory_shared_prerequisites.sql",
@@ -15,10 +15,12 @@ assert.deepEqual(migrationNames, [
   "20261022000400_inventory_integrity_rls.sql",
   "20261022000500_inventory_rpcs.sql",
   "20261022000600_inventory_legacy_compatibility.sql",
-])
+]
+const procurementNames = migrationNames.filter(name => /^20261023\d+_inventory_procurement_[a-z_]+\.sql$/.test(name))
+assert.deepEqual(migrationNames, [...canonicalNames, ...procurementNames])
 
 const [legacySchema, legacyAccess, prerequisites, catalog, workflows, integrity, rpcs, legacyCompatibility] = await Promise.all(
-  migrationNames.map((name) => readFile(new URL(name, migrationsUrl), "utf8")),
+  canonicalNames.map((name) => readFile(new URL(name, migrationsUrl), "utf8")),
 )
 assert.match(legacySchema, /Historical migration marker/)
 assert.match(legacyAccess, /Historical migration marker/)

@@ -1,6 +1,6 @@
 # Live Inventory Dashboard and Procurement Design
 
-Status: builder review complete; awaiting user approval. The independent reviewer reported “nothing important left” after the costing/tracking, historical-receipt and reviewer-recovery proposals were made explicit. No implementation or production migration is authorized by this document alone.
+Status: approved by the user on 2026-10-23 for backend-first implementation followed by React. The independent reviewer reported “nothing important left” after the costing/tracking, historical-receipt and reviewer-recovery proposals were made explicit. Approval includes existing Supabase records only, no demo import, tenant/role enforcement, and no Service Desk changes.
 
 ## Intent and approved direction
 
