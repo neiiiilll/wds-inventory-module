@@ -5,6 +5,7 @@ build/
 .superpowers/
 output/forms-qa/
 functions/lib/
+functions/.secret.local
 .cache/
 .env*
 !.env.example

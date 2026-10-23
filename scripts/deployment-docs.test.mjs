@@ -8,6 +8,7 @@ const firebase = JSON.parse(await readFile(new URL("../firebase.json", import.me
 const pkg = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"))
 const functionPkg = JSON.parse(await readFile(new URL("../functions/package.json", import.meta.url), "utf8"))
 const browserEnv = await readFile(new URL("../.env.example", import.meta.url), "utf8")
+const gitignore = await readFile(new URL("../.gitignore", import.meta.url), "utf8")
 const docs = `${root}\n${database}\n${functions}`
 
 for (const contract of [
@@ -35,4 +36,5 @@ assert.doesNotMatch(browserEnv, /SUPABASE|SERVICE_ROLE/)
 assert.match(browserEnv, /VITE_FIREBASE_FUNCTIONS_REGION=asia-southeast1/)
 assert.doesNotMatch(docs, /INVENTORY_BOOTSTRAP_TENANT_KEY/)
 assert.match(database, /rollback-only/)
+assert.match(gitignore, /^functions\/\.secret\.local$/m, "The documented local Functions secret file must be ignored.")
 console.log("Callable deployment documentation and configuration checks passed.")
