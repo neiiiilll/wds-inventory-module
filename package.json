@@ -5,12 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "test": "node scripts/report-period.test.mjs && node scripts/workflow.test.mjs && node scripts/client-forms.test.mjs && node scripts/procurement.test.mjs && node scripts/date-input.test.mjs && node scripts/request-controls.test.mjs && node scripts/procurement-completion.test.mjs && node scripts/workflow-storage.test.mjs && node scripts/material-charges-ui.test.mjs && node scripts/site-config.test.mjs && node scripts/deployment-docs.test.mjs && node scripts/user-display.test.mjs && node scripts/access-control.test.mjs && node scripts/inventory-migrations.test.mjs && node scripts/edge-functions.test.mjs && node scripts/access-gate.test.mjs && node scripts/edge-client.test.mjs && node scripts/inventory-items-ui.test.mjs && node scripts/settings-page.test.mjs && npm run test:functions",
+    "test": "node scripts/report-period.test.mjs && node scripts/workflow.test.mjs && node scripts/client-forms.test.mjs && node scripts/procurement.test.mjs && node scripts/date-input.test.mjs && node scripts/request-controls.test.mjs && node scripts/procurement-completion.test.mjs && node scripts/workflow-storage.test.mjs && node scripts/material-charges-ui.test.mjs && node scripts/site-config.test.mjs && node scripts/deployment-docs.test.mjs && node scripts/user-display.test.mjs && node scripts/access-control.test.mjs && node scripts/inventory-migrations.test.mjs && node scripts/edge-functions.test.mjs && node scripts/access-gate.test.mjs && node scripts/edge-client.test.mjs && node scripts/inventory-items-ui.test.mjs && node scripts/settings-page.test.mjs && npm run test:edge && npm run test:functions",
+    "test:edge": "npx --yes deno test --allow-env --allow-net supabase/functions/tests",
     "test:functions": "npm --prefix functions test",
     "build:functions": "npm --prefix functions run build",
-    "emulators": "npm run build:functions && firebase emulators:start --project apps-workspace-b61a9 --only auth,functions,hosting",
+    "emulators:rollback": "npm run build:functions && firebase emulators:start --project apps-workspace-b61a9 --only auth,functions,hosting",
     "build": "vite build",
-    "deploy:functions": "npm run build:functions && firebase deploy --project apps-workspace-b61a9 --only functions:inventory",
+    "deploy:edge": "npx supabase functions deploy inventory-api --project-ref oqsgzdkljtxtpwdzptnw --no-verify-jwt",
+    "deploy:functions:rollback": "npm run build:functions && firebase deploy --project apps-workspace-b61a9 --only functions:inventory",
     "deploy:hosting": "npm run build && firebase deploy --project apps-workspace-b61a9 --only hosting:app",
     "preview": "vite preview",
     "format": "oxfmt"

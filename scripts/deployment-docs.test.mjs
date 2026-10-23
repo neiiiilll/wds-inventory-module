@@ -13,11 +13,11 @@ const docs = `${root}\n${database}\n${functions}`
 
 for (const contract of [
   "supabase db reset", "supabase db push", "supabase test db", "Automatic role assignment is disabled",
-  "Functions before Hosting", "Firebase ID token", "service role bypasses RLS", "service desk",
-  "UNIQUE (tenant_id, id)", "Security checklist", "forward migration", "Blaze", "Node.js 22",
-  "asia-southeast1", "firebase functions:secrets:set SUPABASE_URL", "firebase functions:secrets:set SUPABASE_SECRET_KEY",
-  "npm run test:functions", "npm run build:functions", "npm run emulators", "npm run deploy:functions",
-  "npm run deploy:hosting", "cross-tenant", "rollback window", "tenant_id", "refreshToken",
+  "Edge before Hosting", "Firebase ID token", "service role bypasses RLS", "service desk",
+  "UNIQUE (tenant_id, id)", "Security checklist", "forward migration", "Node.js 22",
+  "oqsgzdkljtxtpwdzptnw", "inventory-api", "--no-verify-jwt", "VITE_SUPABASE_PUBLISHABLE_KEY",
+  "npm run test:edge", "npm run test:functions", "npm run build:functions", "npm run deploy:edge",
+  "npm run deploy:hosting", "cross-tenant", "rollback window", "tenant_memberships", "serviceDesk",
 ]) assert.ok(docs.includes(contract), `Missing deployment documentation contract: ${contract}`)
 for (const name of ["provisionInventoryAccess", "listInventoryItems", "updateInventoryItem", "createMaterialRequest", "postStockMovement"])
   assert.ok(functions.includes(`### ${name}`), `Missing callable documentation: ${name}`)
@@ -26,16 +26,22 @@ assert.equal(firebase.functions.runtime, "nodejs22")
 assert.equal(firebase.functions.codebase, "inventory")
 assert.equal(firebase.emulators.functions.port, 5001)
 assert.equal(functionPkg.engines.node, "22")
-assert.equal(pkg.scripts["test:edge"], undefined)
-assert.equal(pkg.scripts["deploy:edge"], undefined)
+assert.match(pkg.scripts["test:edge"], /deno test.*supabase\/functions\/tests/)
+assert.match(pkg.scripts["deploy:edge"], /functions deploy inventory-api --project-ref oqsgzdkljtxtpwdzptnw --no-verify-jwt$/)
 assert.equal(pkg.scripts["test:functions"], "npm --prefix functions test")
 assert.equal(pkg.scripts["build:functions"], "npm --prefix functions run build")
-assert.match(pkg.scripts["deploy:functions"], /npm run build:functions && firebase deploy --project apps-workspace-b61a9 --only functions:inventory$/)
-assert.match(pkg.scripts.emulators, /firebase emulators:start.*--only auth,functions,hosting/)
+assert.equal(pkg.scripts["deploy:functions"], undefined)
+assert.match(pkg.scripts["deploy:functions:rollback"], /npm run build:functions && firebase deploy --project apps-workspace-b61a9 --only functions:inventory$/)
+assert.match(pkg.scripts["emulators:rollback"], /firebase emulators:start.*--only auth,functions,hosting/)
 assert.match(pkg.scripts.test, /npm run test:functions/)
-assert.doesNotMatch(browserEnv, /SUPABASE|SERVICE_ROLE/)
-assert.match(browserEnv, /VITE_FIREBASE_FUNCTIONS_REGION=asia-southeast1/)
+assert.match(pkg.scripts.test, /npm run test:edge/)
+assert.match(browserEnv, /VITE_SUPABASE_URL=https:\/\/oqsgzdkljtxtpwdzptnw\.supabase\.co/)
+assert.match(browserEnv, /VITE_SUPABASE_PUBLISHABLE_KEY=/)
+assert.doesNotMatch(browserEnv, /SERVICE_ROLE|SECRET_KEY|FIREBASE_FUNCTIONS_REGION/)
 assert.doesNotMatch(docs, /INVENTORY_BOOTSTRAP_TENANT_KEY/)
-assert.match(database, /rollback-only/)
+assert.doesNotMatch(docs, /tehynsbnasihzktzvyzy/)
+assert.doesNotMatch(docs, /refreshToken/)
+assert.match(database, /canonical Inventory API/i)
+assert.match(root, /firebase functions:delete provisionInventoryAccess listInventoryItems updateInventoryItem createMaterialRequest postStockMovement/)
 assert.match(gitignore, /^functions\/\.secret\.local$/m, "The documented local Functions secret file must be ignored.")
-console.log("Callable deployment documentation and configuration checks passed.")
+console.log("Edge deployment documentation and staged rollback configuration checks passed.")
