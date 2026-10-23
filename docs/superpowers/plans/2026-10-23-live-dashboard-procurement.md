@@ -115,10 +115,10 @@ Read RPCs receive server-derived `p_tenant_id` and `p_actor_user_id`, plus allow
 
 **Interfaces:** upload input `{ kind, id, name, contentType, size }`; finalize `{ attachmentId }`; download `{ attachmentId }`. All identifiers/paths are generated or resolved server-side. Upload/finalize require mutating role; read/download permit Viewer. Only finalized files with a current readable parent may receive download URLs.
 
-- [ ] Write failing tests for 5 MiB+1, eleventh finalized/pending attachment, spoofed MIME/magic, HTML/SVG/executable data, path substitution, missing/foreign parent, Viewer upload, inactive actor, replaced bytes and role removal between upload/finalize/download.
-- [ ] Verify current official Supabase SDK signed-upload/download semantics before implementation; no invented expiry guarantee. Use random non-overwriting object paths and record pending reservations transactionally so concurrent uploads cannot exceed the cap.
-- [ ] Implement byte/metadata validation and private bucket checks; do not alter a pre-existing bucket owned by another app. No direct browser DB write policy, public URLs or automatic cleanup/deletion of user data.
-- [ ] Run Functions/database tests and controlled Storage acceptance (private Inventory-only test objects); document signed-URL lifetime/revocation limits and orphan behavior. Commit only verified behavior.
+- [x] Write failing tests for 5 MiB+1, eleventh finalized/pending attachment, spoofed MIME/magic, HTML/SVG/executable data, path substitution, missing/foreign parent, Viewer upload, inactive actor, replaced bytes and role removal between upload/finalize/download.
+- [x] Verify current official Supabase SDK signed-upload/download semantics before implementation; no invented expiry guarantee. Use random non-overwriting object paths and record pending reservations transactionally so concurrent uploads cannot exceed the cap.
+- [x] Implement byte/metadata validation and private bucket checks; do not alter a pre-existing bucket owned by another app. No direct browser DB write policy, public URLs or automatic cleanup/deletion of user data.
+- [x] Run Functions/database tests and controlled Storage acceptance (private Inventory-only test objects); document signed-URL lifetime/revocation limits and orphan behavior. Commit only verified behavior.
 
 ### Task 7: Typed React transport and session-scoped live request lifecycle
 

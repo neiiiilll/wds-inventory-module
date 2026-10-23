@@ -12,6 +12,7 @@ import { createMaterialRequestRepository, createMaterialRequestHandler } from ".
 import { createStockRepository, postStockMovementHandler } from "./stock"
 import { createProcurementReadRepository, handleProcurementRead, READ_OPERATIONS, type ReadOperation } from "./procurement/reads"
 import { createProcurementCommandRepository, executeProcurementCommandHandler } from "./procurement/commands"
+import {createAttachmentRepository,createAttachmentStorage,createAttachmentUploadHandler,finalizeAttachmentHandler,getAttachmentDownloadHandler} from './procurement/attachments'
 
 // Keep secret access behind the first authorized database lookup.
 const accessLookup: AccessLookup = {
@@ -34,6 +35,9 @@ const liveReads=Object.fromEntries(READ_OPERATIONS.map(operation=>[operation,(re
 const actions: GatewayDependencies["actions"] = {
   ...liveReads,
   executeProcurementCommand:request=>executeProcurementCommandHandler(request,{accessLookup,repository:{execute:(...args)=>createProcurementCommandRepository(getSupabaseClient()).execute(...args)}}),
+  createProcurementAttachmentUpload:request=>{const client=getSupabaseClient();return createAttachmentUploadHandler(request,{accessLookup,repository:createAttachmentRepository(client),storage:createAttachmentStorage(client)})},
+  finalizeProcurementAttachment:request=>{const client=getSupabaseClient();return finalizeAttachmentHandler(request,{accessLookup,repository:createAttachmentRepository(client),storage:createAttachmentStorage(client)})},
+  getProcurementAttachmentDownload:request=>{const client=getSupabaseClient();return getAttachmentDownloadHandler(request,{accessLookup,repository:createAttachmentRepository(client),storage:createAttachmentStorage(client)})},
   // Session validation only; never assigns access or changes Firebase claims.
   provisionInventoryAccess: request => provisionInventoryAccessHandler(request, {
     repository: { resolve: uid => createProvisionRepository(getSupabaseClient()).resolve(uid) },
