@@ -1,11 +1,21 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import {request,lookup,rejectsCode,tenantId} from "./helpers"
+import {normalizeProcurementCommand} from '../src/procurement/commands'
 let handle:any
 try{handle=require('../src/procurement/commands').executeProcurementCommandHandler}catch(error:any){if(error.code!=='MODULE_NOT_FOUND')throw error}
 test("procurement commands authorize Viewer before any malformed payload validation",async()=>{
  assert.equal(typeof handle,'function','A role-enforced procurement command handler is required')
  for(const input of [null,[],{},'invalid'])await rejectsCode(handle(request(input),{accessLookup:lookup('viewer'),repository:{}}),'permission-denied')
+})
+test('receiving envelopes allow only exact source lines, never client-computed prices or stock',()=>{
+ const id='80000000-0000-4000-8000-000000000001'
+ const input={kind:'recordDelivery',id,expectedVersion:1,idempotencyKey:'delivery',input:{deliveredOn:'2026-10-23',reference:'Delivery',lines:[{purchaseOrderLineId:id,quantity:'2'}]}}
+ assert.deepEqual(normalizeProcurementCommand(input),input)
+ assert.throws(()=>normalizeProcurementCommand({...input,input:{...input.input,lines:[{purchaseOrderLineId:id,quantity:'2',unitCost:'1'}]}}))
+})
+test('historical reconciliation requires Administrator before validating its evidence',async()=>{
+ await rejectsCode(handle(request({kind:'reconcileHistoricalReceipt'}),{accessLookup:lookup('inventory_staff'),repository:{}}),'permission-denied')
 })
 test("procurement command transport derives actor and tenant and rejects authority fields",async()=>{
  assert.equal(typeof handle,'function')

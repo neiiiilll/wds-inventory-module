@@ -92,11 +92,11 @@ Read RPCs receive server-derived `p_tenant_id` and `p_actor_user_id`, plus allow
 
 **Interfaces:** command kinds `recordDelivery`, `recordInspection`, `acceptInspection`, `postAcceptedReceipt`, `recordSupplierReturn`, `reconcileHistoricalReceipt`; inputs identify exact PO/inspection lines and locations, never computed balances or an arbitrary accepted status. Acceptance records a unique report→movement link. Historical reconciliation mode is `linkExistingMovement` or `confirmUnposted`, with required evidence/reason and Administrator authority.
 
-- [ ] Write failing SQL tests for partial/all-rejected deliveries, chronological dispatch/inspection checks, replacement limits, supplier-return capacity, foreign line/location IDs, stale versions, two simultaneous deliveries/replacements/returns, and receipt retry/rollback after failure on a later line.
-- [ ] Write historical tests proving an unlinked accepted report cannot post, exact proven movement linkage changes no balance, ambiguous matches fail, and documented confirmed-unposted recovery posts once.
-- [ ] Implement receiving transactions and server-side capacity calculation. Reuse `inv_post_stock_movement` only inside the same outer transaction with reserved source/key, after role/reference/precision/cost/tracking checks. Multiple assets/lines and audit/acceptance changes roll back together.
-- [ ] Implement weighted-average tagged/non-tagged receipts with independently confirmed tracking; unknown tracking and `fifo`/`standard` fail without changes. Reject duplicate/reused tags and fractional tagged quantities. No opening-cost inference or cost_method conversion.
-- [ ] Run all receiving/historical/concurrency tests and the full backend suite; commit.
+- [x] Write failing SQL tests for partial/all-rejected deliveries, chronological dispatch/inspection checks, replacement limits, supplier-return capacity, foreign line/location IDs, stale versions, two simultaneous deliveries/replacements/returns, and receipt retry/rollback after failure on a later line.
+- [x] Write historical tests proving an unlinked accepted report cannot post, exact proven movement linkage changes no balance, ambiguous matches fail, and documented confirmed-unposted recovery posts once.
+- [x] Implement receiving transactions and server-side capacity calculation. Reuse `inv_post_stock_movement` only inside the same outer transaction with reserved source/key, after role/reference/precision/cost/tracking checks. Multiple assets/lines and audit/acceptance changes roll back together.
+- [x] Implement weighted-average tagged/non-tagged receipts with independently confirmed tracking; unknown tracking and `fifo`/`standard` fail without changes. Reject duplicate/reused tags and fractional tagged quantities. No opening-cost inference or cost_method conversion.
+- [x] Run all receiving/historical/concurrency tests and the full backend suite; commit.
 
 ### Task 5: Minimal Inventory setup and printable document integrity
 

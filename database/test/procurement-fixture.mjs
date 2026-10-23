@@ -42,3 +42,24 @@ export async function approvedPurchaseRequest(db,refs,quantity="10") {
  const prLineId=(await db.client.query('select id from inv_purchase_request_lines where tenant_id=$1 and purchase_request_id=$2',[tenant,pr.id])).rows[0].id
  return {...f,pr,prLineId}
 }
+export async function dispatchedOrder(db,refs,quantity="10") {
+ const f=await approvedPurchaseRequest(db,refs,quantity),cmd=commands(db)
+ let po=await cmd('createPurchaseOrder',{purchaseRequestId:f.pr.id,orderedOn:'2026-10-23',lines:[{purchaseRequestLineId:f.prLineId,quantity}]})
+ const orderLineId=(await db.client.query('select id from inv_purchase_order_lines where tenant_id=$1 and purchase_order_id=$2',[tenant,po.id])).rows[0].id
+ po=await cmd('dispatchPurchaseOrder',{dispatchedOn:'2026-10-23',method:'email',recipient:'Fixture supplier',reference:'Fixture dispatch',reason:'Fixture'},po.id,po.version)
+ return {...f,po,orderLineId}
+}
+export async function deliveredReport(db,refs,quantity="10") {
+ const f=await dispatchedOrder(db,refs,quantity),cmd=commands(db)
+ const report=await cmd('recordDelivery',{deliveredOn:'2026-10-23',reference:randomUUID(),lines:[{purchaseOrderLineId:f.orderLineId,quantity}]},f.po.id,f.po.version)
+ const inspectionLineId=(await db.client.query('select id from inv_inspection_report_lines where tenant_id=$1 and inspection_report_id=$2',[tenant,report.id])).rows[0].id
+ return {...f,report,inspectionLineId}
+}
+export async function inspectedReport(db,refs,{quantity="10",accepted=quantity,damaged="0",rejected="0",tags}={}) {
+ const f=await deliveredReport(db,refs,quantity)
+ const report=await commands(db)('recordInspection',{inspectedOn:'2026-10-23',findings:'Fixture inspection',lines:[{inspectionLineId:f.inspectionLineId,acceptedQuantity:accepted,damagedQuantity:damaged,rejectedQuantity:rejected,locationId:refs.location,...(tags?{assetTags:tags}:{})}]},f.report.id,f.report.version)
+ return {...f,report}
+}
+export async function tracking(db,refs,mode='quantity_only') {
+ await db.client.query('insert into inv_item_tracking(tenant_id,item_id,mode,configured_by_user_id,reason) values($1,$2,$3,$4,$5) on conflict(tenant_id,item_id) do update set mode=excluded.mode',[tenant,refs.item,mode,admin,'Independent fixture setup'])
+}
