@@ -1,0 +1,1 @@
+export default function DemoDataNotice(){return <div className="notice warning"><strong>Browser demo area</strong><span>This out-of-scope screen uses local demonstration data and does not affect the live Supabase Dashboard or procurement records.</span></div>}

@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from "react"
 import type { User } from "firebase/auth"
 import { onAuthStateChanged, signOut } from "firebase/auth"
+import LiveDashboard from './components/live/LiveDashboard'
+import LiveMovementRegister from './components/live/LiveMovementRegister'
+import LiveReceiptRegister from './components/live/LiveReceiptRegister'
+import DemoDataNotice from './components/live/DemoDataNotice'
 
 import InventoryWorkflow from "./components/InventoryWorkflow"
 import PurchaseDocuments from "./components/PurchaseDocuments";
@@ -494,68 +498,16 @@ function InventoryApp({ session, appUser }: { session: User; appUser: AppUser })
         <div className="content">
           <ReadOnlyAccessNotice role={role} />
           {page === "dashboard" && (
-            <Dashboard
-              items={items}
-              transactions={transactions}
-              currentPersonnel={currentPersonnel}
-              onNavigate={navigate}
-              onView={showItem}
-            />
+            <LiveDashboard onNavigate={navigate} />
           )}
           {page === "settings" && <Settings currentUser={appUser} onSignOut={() => { if (firebaseAuth) void signOut(firebaseAuth) }} />}
-          {page === "dashboard" && (
-            <section className="panel workflow-overview">
-              <PanelHead
-                title="Connected workflow"
-                subtitle="Follow materials from maintenance request to job cost."
-              />
-              <div className="workflow-overview-grid">
-                <button onClick={() => navigate("requests")}>
-                  <span>Material requests</span>
-                  <strong>
-                    {
-                      workflow.requests.filter(
-                        (r) => requestFulfillmentStatus(workflow, r) !== "Fully issued",
-                      ).length
-                    }
-                  </strong>
-                  <small>Open requirements →</small>
-                </button>
-                <button onClick={() => navigate("inspection")}>
-                  <span>Inspection & acceptance</span>
-                  <strong>
-                    {workflow.iars.filter((i) => !i.acceptedBy).length}
-                  </strong>
-                  <small>Pending acknowledgments →</small>
-                </button>
-                <button onClick={() => navigate("stock-in")}>
-                  <span>Accepted receipts</span>
-                  <strong>
-                    {
-                      workflow.iars.filter(
-                        (i) => i.acceptedBy && !i.postingId && i.accepted > 0,
-                      ).length
-                    }
-                  </strong>
-                  <small>Ready for stock-in →</small>
-                </button>
-                <button onClick={() => navigate("charges")}>
-                  <span>Issued material cost</span>
-                  <strong>
-                    {money(workflow.releases.reduce((s, r) => s + r.value, 0))}
-                  </strong>
-                  <small>Job cost sheets →</small>
-                </button>
-              </div>
-            </section>
-          )}
           {page === "inventory" && (
             <InventoryItemsPage canEdit={canEdit} />
           )}
+          {["stock-out", "charges", "trail", "reports", "reconciliation"].includes(page) && <DemoDataNotice />}
           {[
             "requests",
             "inspection",
-            "stock-in",
             "stock-out",
           ].includes(page) && (
             <InventoryWorkflow
@@ -571,6 +523,7 @@ function InventoryApp({ session, appUser }: { session: User; appUser: AppUser })
               onNavigate={navigate}
             />
           )}
+          {page === "stock-in" && <LiveReceiptRegister />}
           {(page==="purchase-requests"||page==="procurement")&&<PurchaseDocuments key={page} kind={page==="purchase-requests"?"pr":"po"} state={workflow} role={role} currentPersonnel={currentPersonnel} onAction={onWorkflowAction} onNavigate={navigate} onInspectOrder={orderId=>{setInspectionOrderId(orderId);navigate("inspection");}}/>}
           {page === "charges" && (
             <MaterialCharges
@@ -587,15 +540,7 @@ function InventoryApp({ session, appUser }: { session: User; appUser: AppUser })
             />
           )}
           {page === "transactions" && (
-            <Transactions
-              transactions={transactions}
-              items={items}
-              onOpen={(tx) => {
-                setSelectedTx(tx)
-                setModal("transaction-detail")
-              }}
-              onNew={() => requirePermission(() => navigate("reconciliation"))}
-            />
+            <LiveMovementRegister />
           )}
           {page === "trail" && <StockTrail transactions={transactions} />}
           {page === "reports" && (
