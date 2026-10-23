@@ -11,6 +11,7 @@ import { createInventoryRepository, listInventoryItemsHandler, updateInventoryIt
 import { createMaterialRequestRepository, createMaterialRequestHandler } from "./material-requests"
 import { createStockRepository, postStockMovementHandler } from "./stock"
 import { createProcurementReadRepository, handleProcurementRead, READ_OPERATIONS, type ReadOperation } from "./procurement/reads"
+import { createProcurementCommandRepository, executeProcurementCommandHandler } from "./procurement/commands"
 
 // Keep secret access behind the first authorized database lookup.
 const accessLookup: AccessLookup = {
@@ -32,6 +33,7 @@ const liveReads=Object.fromEntries(READ_OPERATIONS.map(operation=>[operation,(re
 })])) as Pick<GatewayDependencies["actions"],ReadOperation>
 const actions: GatewayDependencies["actions"] = {
   ...liveReads,
+  executeProcurementCommand:request=>executeProcurementCommandHandler(request,{accessLookup,repository:{execute:(...args)=>createProcurementCommandRepository(getSupabaseClient()).execute(...args)}}),
   // Session validation only; never assigns access or changes Firebase claims.
   provisionInventoryAccess: request => provisionInventoryAccessHandler(request, {
     repository: { resolve: uid => createProvisionRepository(getSupabaseClient()).resolve(uid) },

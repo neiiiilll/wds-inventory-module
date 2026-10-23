@@ -11,6 +11,7 @@ export const INVENTORY_OPERATIONS = [
   "getProcurementDocument",
   "getProcurementReferenceData",
   "listInventoryMovements",
+  "executeProcurementCommand",
 ] as const
 export type InventoryOperation = typeof INVENTORY_OPERATIONS[number]
 type Action = (request: CallableRequest<unknown>) => Promise<unknown>

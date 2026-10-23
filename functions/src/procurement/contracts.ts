@@ -37,4 +37,4 @@ export type CommandKind =
   | "recordDelivery" | "recordInspection" | "acceptInspection" | "postAcceptedReceipt" | "recordSupplierReturn"
   | "reconcileHistoricalReceipt" | "saveSupplier" | "saveWarehouse" | "saveStorageLocation" | "configureItemTracking" | "saveDocumentPrintFields"
 export interface CommandInput { kind: CommandKind; id?: string; expectedVersion?: number; idempotencyKey: string; input: Record<string, unknown> }
-export interface CommandResult { id: string; kind: DocumentKind | ReferenceKind | "tracking"; version: number; replayed: boolean; invalidations: string[] }
+export interface CommandResult { id: string; kind: DocumentKind | ReferenceKind | "tracking"; version: number; replayed: boolean; invalidations: string[]; reference?: string; status?: string; parentVersion?: number }

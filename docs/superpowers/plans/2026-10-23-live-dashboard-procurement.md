@@ -79,12 +79,12 @@ Read RPCs receive server-derived `p_tenant_id` and `p_actor_user_id`, plus allow
 
 **Interfaces:** command kinds `createMaterialRequest`, `editMaterialRequest`, `approveMaterialRequest`, `createAdditionalMaterialRequest`, `createQuotation`, `createPurchaseRequest`, `revisePurchaseRequest`, `submitPurchaseRequest`, `reviewPurchaseRequest`, `reassignPendingReviewer`, `createPurchaseOrder`, `dispatchPurchaseOrder`. Each has an exact input schema; client identity/status/history/prices-at-PR/PO inputs are rejected. Allocations and unit/price snapshots are server-derived. IDs/numbers are server-generated.
 
-- [ ] Add failing executed-SQL tests for the complete MR→quote→PR→four-stage review→PO→dispatch path; returned/revised/rejected PRs; stale quotations/versions; Staff requester override; nonassigned reviewer; duplicate/out-of-order reviews; active/inactive reviewer reassignment; parent/job and foreign line/supplier/reviewer injection.
-- [ ] Add two-real-connection tests proving simultaneous PR submission/PO creation cannot allocate the same requirement twice, and document numbers remain unique.
-- [ ] Run the tests red, then implement command transactions with deterministic MR→PR→PO lock order. Check authorization before payload validation at the callable and again inside SQL. Replay successful same-actor commands before old-version checks; do not replay a different user's result.
-- [ ] Preserve immutable approved supplier/prices/identities and revision-scoped decisions; Submitted is locked, Returned requires a saved revision, Rejected is terminal, and reassignment changes only an ineligible pending assignment with an Administrator reason/audit.
-- [ ] Keep existing createMaterialRequest response compatible; route procurement creates through the new transaction so requester restrictions cannot be bypassed through its legacy envelope. Reserve procurement movement source/idempotency namespaces against generic public stock operations without changing legitimate unrelated legacy posting semantics.
-- [ ] Run document/concurrency SQL tests, gateway/domain tests and Functions build; commit.
+- [x] Add failing executed-SQL tests for the complete MR→quote→PR→four-stage review→PO→dispatch path; returned/revised/rejected PRs; stale quotations/versions; Staff requester override; nonassigned reviewer; duplicate/out-of-order reviews; active/inactive reviewer reassignment; parent/job and foreign line/supplier/reviewer injection.
+- [x] Add two-real-connection tests proving simultaneous PR submission/PO creation cannot allocate the same requirement twice, and document numbers remain unique.
+- [x] Run the tests red, then implement command transactions with deterministic MR→PR→PO lock order. Check authorization before payload validation at the callable and again inside SQL. Replay successful same-actor commands before old-version checks; do not replay a different user's result.
+- [x] Preserve immutable approved supplier/prices/identities and revision-scoped decisions; Submitted is locked, Returned requires a saved revision, Rejected is terminal, and reassignment changes only an ineligible pending assignment with an Administrator reason/audit.
+- [x] Keep existing createMaterialRequest response compatible; route procurement creates through the new transaction so requester restrictions cannot be bypassed through its legacy envelope. Reserve procurement movement source/idempotency namespaces against generic public stock operations without changing legitimate unrelated legacy posting semantics.
+- [x] Run document/concurrency SQL tests, gateway/domain tests and Functions build; commit.
 
 ### Task 4: Receiving, inspection, supplier returns and atomic stock receipt
 
