@@ -1,20 +1,8 @@
 import { InventoryApiError, provisionInventoryAccess } from "./inventory-api"
 import { toAppRole, type AppRole, type AppUser } from "./access-control"
-import { firebaseAuth } from "./firebase"
 
 export async function provisionCurrentUser(): Promise<AppUser> {
-  let response = await provisionInventoryAccess()
-  if (response.refreshToken) {
-    const user = firebaseAuth?.currentUser
-    if (!user) throw new InventoryApiError("unauthenticated")
-    try {
-      await user.getIdToken(true)
-    } catch {
-      throw new InventoryApiError("unauthenticated")
-    }
-    response = await provisionInventoryAccess()
-    if (response.refreshToken) throw new InventoryApiError("permission-denied")
-  }
+  const response = await provisionInventoryAccess()
   const role = toAppRole(response.roleKey)
   if (response.status === "active" && !role) throw new InventoryApiError("permission-denied")
   const timestamp = new Date().toISOString()
