@@ -4,9 +4,9 @@ Canonical API: Firebase v2 callable Functions, Node.js 22, region `asia-southeas
 
 ## Shared security and secrets
 
-Every callable binds the Firebase secrets `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`. Enter them interactively with `firebase functions:secrets:set SUPABASE_URL --project apps-workspace-b61a9` and `firebase functions:secrets:set SUPABASE_SERVICE_ROLE_KEY --project apps-workspace-b61a9`. The service client initializes lazily after authentication checks, with session persistence and refresh disabled. Secrets never belong in browser configuration, logs, or Git; redeploy Functions after secret changes.
+Every callable binds the Firebase secrets `SUPABASE_URL` and `SUPABASE_SECRET_KEY`. Enter them interactively with `firebase functions:secrets:set SUPABASE_URL --project apps-workspace-b61a9` and `firebase functions:secrets:set SUPABASE_SECRET_KEY --project apps-workspace-b61a9`. Use a current Supabase `sb_secret_...` server key, not a publishable/anon key. The service client initializes lazily after authentication checks, with session persistence and refresh disabled. Secrets never belong in browser configuration, logs, or Git; redeploy Functions after secret changes.
 
-All business callables require Firebase authentication and a valid `request.auth.token.tenant_id` UUID. Before handling input, they query `app_users`, `tenant_memberships`, `tenants`, `applications`, `membership_roles`, and `app_roles` to require an active user, exactly one active membership, an active tenant/Inventory application, and an explicit permitted Inventory role. The database tenant must match the claim. Every query/RPC receives that authorized UUID because the service role bypasses RLS. No callable accesses service desk tables.
+All business callables require Firebase authentication and a valid `request.auth.token.tenant_id` UUID. Before handling input, they query `app_users`, `tenant_memberships`, `tenants`, `applications`, `membership_roles`, and `app_roles` to require an active user, exactly one active membership, an active tenant/Inventory application, and an explicit permitted Inventory role. The database tenant must match the claim. Every query/RPC receives that authorized UUID because the server secret has elevated access and bypasses RLS. No callable accesses service desk tables.
 
 Inputs use exact allowlists: never send tenant, actor, role, status, document number, or replacement version fields. UUID references must belong to the authorized tenant. Expected failures use callable codes `unauthenticated`, `permission-denied`, `invalid-argument`, `not-found`, `failed-precondition`, and `aborted`; unexpected errors expose a correlation reference only. React preserves its fixed safe messages and discards backend messages/details. Server logs contain correlation references and safe codes, not input, SQL, tokens, or secrets.
 
@@ -52,7 +52,7 @@ npm run build
 npm run emulators
 ```
 
-Use Node.js 22. The root `npm test` also runs the Functions tests. For local secrets, create ignored `functions/.secret.local` with `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` for a disposable local database. For a remote emulator host, adjust its database URL for that host. Do not point emulator mutation tests at production.
+Use Node.js 22. The root `npm test` also runs the Functions tests. For local secrets, create ignored `functions/.secret.local` with `SUPABASE_URL` and `SUPABASE_SECRET_KEY` for a disposable local database. For a remote emulator host, adjust its database URL for that host. Do not point emulator mutation tests at production.
 
 Auth, Functions, and Hosting use ports 9099, 5001, and 5000. The production browser intentionally does not connect automatically. Run an SDK harness in a separate local process (or use equivalent devtools imports) with explicit emulator connections before sign-in. Use a dedicated emulator app and real local Auth/database fixtures; create the user's database mapping and explicit role first. Mark the emulator user's email verified using the Auth emulator UI before testing provisioning.
 

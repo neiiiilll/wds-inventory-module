@@ -112,7 +112,7 @@ assert.equal((await scenario.run()).active, false)
 
 await assert.rejects(access(new URL("../src/services/inventory-http.ts", import.meta.url)), { code: "ENOENT" })
 for (const source of [apiSource, firebase, env, envTypes]) {
-  assert.doesNotMatch(source, /VITE_SUPABASE|@supabase|SUPABASE_SERVICE_ROLE_KEY|functions\/v1|publishableKey/)
+  assert.doesNotMatch(source, /VITE_SUPABASE|@supabase|SUPABASE_(?:SERVICE_ROLE|SECRET)_KEY|functions\/v1|publishableKey/)
 }
 assert.doesNotMatch(apiSource, /tenantId|tenant_id|fetch\(/)
 assert.match(env, /VITE_FIREBASE_FUNCTIONS_REGION=asia-southeast1/)

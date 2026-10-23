@@ -22,7 +22,7 @@ Copy `.env.example` to ignored `.env.local` and fill in Firebase web settings. `
 
 For a disposable database, run `supabase start`, `supabase db reset`, and `supabase test db`. See [supabase/README.md](supabase/README.md) for migration order and shared-project precautions.
 
-Run `npm run build` then `npm run emulators` for Auth (9099), Functions (5001), and Hosting (5000). Set ignored `functions/.secret.local` values for `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` using a disposable database only. The browser does not automatically connect to emulators: use the explicitly connected SDK harness in [functions/README.md](functions/README.md), with Auth users whose UIDs match database fixtures. Hosting emulator alone still serves a client configured for deployed services.
+Run `npm run build` then `npm run emulators` for Auth (9099), Functions (5001), and Hosting (5000). Set ignored `functions/.secret.local` values for `SUPABASE_URL` and `SUPABASE_SECRET_KEY` using a disposable database only. The browser does not automatically connect to emulators: use the explicitly connected SDK harness in [functions/README.md](functions/README.md), with Auth users whose UIDs match database fixtures. Hosting emulator alone still serves a client configured for deployed services.
 
 ## Login access validation
 
@@ -37,7 +37,7 @@ Firebase project `apps-workspace-b61a9` serves Hosting target `app`, site `app-i
 ```sh
 firebase login --reauth
 firebase functions:secrets:set SUPABASE_URL --project apps-workspace-b61a9
-firebase functions:secrets:set SUPABASE_SERVICE_ROLE_KEY --project apps-workspace-b61a9
+firebase functions:secrets:set SUPABASE_SECRET_KEY --project apps-workspace-b61a9
 supabase db push --dry-run
 supabase db push
 supabase test db
@@ -65,7 +65,7 @@ Record the previous Hosting release before cutover. If smoke tests fail before H
 
 - No server credential, private key, database password, or real token belongs in React, Vite variables, source, logs, or Git.
 - Firebase validates callable authentication; handlers validate `tenant_id` and recheck one active membership, tenant/application, and allowed Inventory role.
-- Every query/RPC receives the authorized tenant UUID. The service role bypasses RLS, so function-code tenant and role validation remains mandatory.
+- Every query/RPC receives the authorized tenant UUID. The server secret bypasses RLS, so function-code tenant and role validation remains mandatory.
 - Inventory tables have deny-by-default RLS; RPC execution is granted only to `service_role`. Composite child references remain tenant-bound.
 - Updates require expected versions; stock posts use bounded idempotency keys and atomic RPCs.
 - Safe UI errors hide SQL, credentials, internal details, and cross-tenant existence. Server logs use correlation references and safe error codes.

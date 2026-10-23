@@ -8,7 +8,7 @@ Move the inventory API transport and server secrets from Supabase Edge Functions
 
 The React app is hosted by Firebase and signs users in with Firebase Authentication. It initializes Firebase Functions in `asia-southeast1` and invokes typed callables with `httpsCallable`. Firebase automatically validates and exposes the caller's ID token as `request.auth`.
 
-Firebase Functions run on Node.js 22. They use Firebase Secret Manager values `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` to create a server-only Supabase client. No Supabase credential or public Supabase endpoint remains in browser configuration after cutover.
+Firebase Functions run on Node.js 22. They use Firebase Secret Manager values `SUPABASE_URL` and `SUPABASE_SECRET_KEY` to create a server-only Supabase client. `SUPABASE_SECRET_KEY` holds a current Supabase `sb_secret_...` key rather than the deprecated legacy JWT service-role key. No Supabase credential or public Supabase endpoint remains in browser configuration after cutover.
 
 Supabase remains the shared Postgres backend. Existing migrations, deny-by-default inventory RLS, `inv_*` tables, shared access tables, and atomic inventory RPCs remain unchanged. Functions must never access a `svc_*` table.
 
@@ -18,7 +18,7 @@ Supabase remains the shared Postgres backend. Existing migrations, deny-by-defau
 
 When database access is valid, provisioning preserves unrelated Firebase custom claims and sets `tenant_id` to the Supabase tenant UUID. It returns `refreshToken: true` when the token is missing or has a stale tenant claim. React then calls `currentUser.getIdToken(true)` before invoking business functions.
 
-Every business callable rejects an unauthenticated request, validates `request.auth.token.tenant_id`, re-resolves the active database membership and Inventory role, and requires the database tenant UUID to match the claim. The client may never submit tenant, actor, role, status, document number, or replacement version fields. Every database query and RPC is explicitly scoped by the authorized tenant UUID because the service role bypasses RLS.
+Every business callable rejects an unauthenticated request, validates `request.auth.token.tenant_id`, re-resolves the active database membership and Inventory role, and requires the database tenant UUID to match the claim. The client may never submit tenant, actor, role, status, document number, or replacement version fields. Every database query and RPC is explicitly scoped by the authorized tenant UUID because the elevated server key bypasses RLS.
 
 ## Callable surface
 

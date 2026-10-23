@@ -19,7 +19,7 @@ test("expected callable errors preserve code and details", () => {
 })
 
 test("unexpected errors hide infrastructure details behind a correlation reference", () => {
-  for (const thrown of [new Error("postgres://secret@host/db SELECT password"), { message: "SUPABASE_SERVICE_ROLE_KEY=secret" }, null]) {
+  for (const thrown of [new Error("postgres://secret@host/db SELECT password"), { message: "SUPABASE_SECRET_KEY=secret" }, null]) {
     const result = toHttpsError(thrown, "request-4")
     assert.equal(result.code, "internal")
     assert.equal(result.message, "The request could not be completed. Reference: request-4.")

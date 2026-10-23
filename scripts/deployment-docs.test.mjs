@@ -15,7 +15,7 @@ for (const contract of [
   "supabase db reset", "supabase db push", "supabase test db", "Automatic role assignment is disabled",
   "Functions before Hosting", "Firebase ID token", "service role bypasses RLS", "service desk",
   "UNIQUE (tenant_id, id)", "Security checklist", "forward migration", "Blaze", "Node.js 22",
-  "asia-southeast1", "firebase functions:secrets:set SUPABASE_URL", "firebase functions:secrets:set SUPABASE_SERVICE_ROLE_KEY",
+  "asia-southeast1", "firebase functions:secrets:set SUPABASE_URL", "firebase functions:secrets:set SUPABASE_SECRET_KEY",
   "npm run test:functions", "npm run build:functions", "npm run emulators", "npm run deploy:functions",
   "npm run deploy:hosting", "cross-tenant", "rollback window", "tenant_id", "refreshToken",
 ]) assert.ok(docs.includes(contract), `Missing deployment documentation contract: ${contract}`)

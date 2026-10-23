@@ -14,7 +14,7 @@
 
 - Runtime is Node.js 22 and region is `asia-southeast1`.
 - The custom claim key is exactly `tenant_id` and its value is the Supabase tenant UUID.
-- `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are Firebase secrets bound to every database-using callable.
+- `SUPABASE_URL` and `SUPABASE_SECRET_KEY` are Firebase secrets bound to every database-using callable.
 - No browser code or `VITE_*` value contains a Supabase service credential.
 - No callable accepts a tenant, actor, or role from client data.
 - Every business query/RPC uses the authorized tenant ID explicitly.
@@ -125,7 +125,7 @@
 
 - [ ] **Step 1: Run the complete local verification matrix** including Functions tests/build, root tests/typecheck/build, `git diff --check`, and source/secret/table scans.
 - [ ] **Step 2: Reauthenticate Firebase CLI** for project `apps-workspace-b61a9` without exposing credentials.
-- [ ] **Step 3: Set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`** through interactive Firebase secret prompts.
+- [ ] **Step 3: Set `SUPABASE_URL` and `SUPABASE_SECRET_KEY`** through interactive Firebase secret prompts.
 - [ ] **Step 4: Deploy Functions and list deployed functions/regions**; diagnose and repair any deployment failure before continuing.
 - [ ] **Step 5: Smoke-test authentication, provisioning, listing, and cross-tenant denial** with available test identities.
 - [ ] **Step 6: Build and deploy Firebase Hosting** only after callable smoke tests pass.
