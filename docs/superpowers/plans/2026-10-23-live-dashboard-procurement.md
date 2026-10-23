@@ -104,10 +104,10 @@ Read RPCs receive server-derived `p_tenant_id` and `p_actor_user_id`, plus allow
 
 **Interfaces:** Administrator-only command kinds `saveSupplier`, `saveWarehouse`, `saveStorageLocation`, `configureItemTracking`; writable-role `saveDocumentPrintFields` with bounded kind-specific display-field allowlists. Tracking mode is `quantity_only` or `individually_tagged` with required reason/version. Existing asset rows constrain mode changes; no command changes balances or shared users/personnel.
 
-- [ ] Write failing tests for Viewer/Staff setup denial, foreign references, duplicate codes, inactive locations, changing tracking with existing assets/stock incompatibilities, forged approval fields in print metadata, and catalog edits preserving approved/printed historical snapshots.
-- [ ] Run focused tests red; implement explicit Inventory setup commands and document field validators with audit/idempotency.
-- [ ] Ensure no missing supplier/location/tracking configuration is auto-created; expose setup-required responses and server action availability.
-- [ ] Run focused database/Functions tests and full backend regression; commit.
+- [x] Write failing tests for Viewer/Staff setup denial, foreign references, duplicate codes, inactive locations, changing tracking with existing assets/stock incompatibilities, forged approval fields in print metadata, and catalog edits preserving approved/printed historical snapshots.
+- [x] Run focused tests red; implement explicit Inventory setup commands and document field validators with audit/idempotency.
+- [x] Ensure no missing supplier/location/tracking configuration is auto-created; expose setup-required responses and server action availability.
+- [x] Run focused database/Functions tests and full backend regression; commit.
 
 ### Task 6: Private attachment lifecycle
 

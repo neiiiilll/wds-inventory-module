@@ -6,13 +6,15 @@ import { inputObject, allowOnly, uuid } from "../material-requests"
 import type { CommandInput, CommandResult } from "./contracts"
 import { procurementError } from "./reads"
 
-export const DOCUMENT_COMMANDS=["createMaterialRequest","editMaterialRequest","approveMaterialRequest","createAdditionalMaterialRequest","createQuotation","createPurchaseRequest","revisePurchaseRequest","submitPurchaseRequest","reviewPurchaseRequest","reassignPendingReviewer","createPurchaseOrder","dispatchPurchaseOrder","recordDelivery","recordInspection","acceptInspection","postAcceptedReceipt","recordSupplierReturn","reconcileHistoricalReceipt"] as const
+export const DOCUMENT_COMMANDS=["createMaterialRequest","editMaterialRequest","approveMaterialRequest","createAdditionalMaterialRequest","createQuotation","createPurchaseRequest","revisePurchaseRequest","submitPurchaseRequest","reviewPurchaseRequest","reassignPendingReviewer","createPurchaseOrder","dispatchPurchaseOrder","recordDelivery","recordInspection","acceptInspection","postAcceptedReceipt","recordSupplierReturn","reconcileHistoricalReceipt","saveSupplier","saveWarehouse","saveStorageLocation","configureItemTracking","saveDocumentPrintFields"] as const
 const FIELDS:Record<string,readonly string[]>={
  createMaterialRequest:["requestedOn","job","requesterPersonnelId","lines"],editMaterialRequest:["job","requesterPersonnelId","lines","reason"],approveMaterialRequest:["reference"],createAdditionalMaterialRequest:["requestedOn","job","requesterPersonnelId","lines"],
  createQuotation:["materialRequestId","supplierId","reference","quotedOn","validUntil","terms","lines"],createPurchaseRequest:["materialRequestId","quotationId","requestedOn","selectionReason","reviewers","lines"],revisePurchaseRequest:["quotationId","requestedOn","selectionReason","reason","reviewers","lines"],submitPurchaseRequest:[],reviewPurchaseRequest:["stageOrder","decision","reason","reference"],reassignPendingReviewer:["reviewerId","reason"],createPurchaseOrder:["purchaseRequestId","orderedOn","lines"],dispatchPurchaseOrder:["dispatchedOn","method","recipient","reference","reason"],
  recordDelivery:["deliveredOn","reference","replacementOfReportId","lines"],recordInspection:["inspectedOn","findings","lines"],acceptInspection:["acceptedOn","reference"],postAcceptedReceipt:[],recordSupplierReturn:["inspectionLineId","quantity","returnedOn","reference","reason"],reconcileHistoricalReceipt:["mode","movementId","reason","evidence"],
+ saveSupplier:["code","name","contactName","email","phone","address","active"],saveWarehouse:["code","name","active"],saveStorageLocation:["warehouseId","code","bin","active"],configureItemTracking:["mode","reason"],saveDocumentPrintFields:["kind","fields"],
 }
 const UPDATES=new Set(["editMaterialRequest","approveMaterialRequest","createAdditionalMaterialRequest","revisePurchaseRequest","submitPurchaseRequest","reviewPurchaseRequest","reassignPendingReviewer","dispatchPurchaseOrder","recordDelivery","recordInspection","acceptInspection","postAcceptedReceipt","recordSupplierReturn","reconcileHistoricalReceipt"])
+const SETUP=new Set(['saveSupplier','saveWarehouse','saveStorageLocation','configureItemTracking','saveDocumentPrintFields'])
 function text(value:unknown,field:string,max=1000):string {
  if(typeof value!=="string"||!value.trim()||value.trim().length>max)throw new InputError(`${field} is required and must be bounded text.`)
  return value.trim()
@@ -34,7 +36,10 @@ export function normalizeProcurementCommand(value:unknown):CommandInput {
  const kind=raw.kind as CommandInput["kind"],input={...inputObject(raw.input,"Expected command input.")}
  allowOnly(input,new Set(FIELDS[kind]))
  const result:CommandInput={kind,idempotencyKey:text(raw.idempotencyKey,"idempotencyKey",200),input}
- if(UPDATES.has(kind)) {
+ if(SETUP.has(kind)) {
+   if(kind==='configureItemTracking'||kind==='saveDocumentPrintFields'||raw.id!==undefined){result.id=uuid(raw.id,'id');if(typeof raw.expectedVersion!=="number"||!Number.isSafeInteger(raw.expectedVersion)||raw.expectedVersion<(kind==='configureItemTracking'?0:1))throw new InputError('A current version is required.');result.expectedVersion=raw.expectedVersion}
+   else if(raw.expectedVersion!==undefined)throw new InputError('Creation does not accept a version.')
+ } else if(UPDATES.has(kind)) {
    result.id=uuid(raw.id,"id")
    if(typeof raw.expectedVersion!=="number"||!Number.isSafeInteger(raw.expectedVersion)||raw.expectedVersion<1)throw new InputError("A current version is required.")
    result.expectedVersion=raw.expectedVersion
@@ -55,6 +60,9 @@ export function normalizeProcurementCommand(value:unknown):CommandInput {
  if(kind==="reconcileHistoricalReceipt"&&!['linkExistingMovement','confirmUnposted'].includes(input.mode as string))throw new InputError('Invalid reconciliation mode.')
  if(kind==="reconcileHistoricalReceipt"&&input.mode==='linkExistingMovement'&&!input.movementId)throw new InputError('An existing movement is required.')
  if(kind==="recordSupplierReturn")input.quantity=decimal(input.quantity,true)
+ if(['saveSupplier','saveWarehouse','saveStorageLocation'].includes(kind)) {input.code=text(input.code,'code',100);if(kind!=='saveStorageLocation')input.name=text(input.name,'name',300);if(input.active!==undefined&&typeof input.active!=='boolean')throw new InputError('active must be boolean.');for(const field of ['contactName','email','phone','address','bin'])if(input[field]!==undefined&&input[field]!==null)input[field]=text(input[field],field,500);if(kind==='saveStorageLocation')input.warehouseId=uuid(input.warehouseId,'warehouseId')}
+ if(kind==='configureItemTracking'){if(!['quantity_only','individually_tagged'].includes(input.mode as string))throw new InputError('Invalid tracking mode.');input.reason=text(input.reason,'reason',500)}
+ if(kind==='saveDocumentPrintFields'){if(!['material_request','quotation','purchase_request','purchase_order','inspection'].includes(input.kind as string))throw new InputError('Invalid document kind.');const fields={...inputObject(input.fields,'Expected print fields.')};allowOnly(fields,new Set(['organizationName','organizationAddress','attention','note','footer','deliveryInstructions']));for(const key of Object.keys(fields))fields[key]=text(fields[key],key,500);input.fields=fields}
  if(FIELDS[kind].includes("lines")&&!['recordDelivery','recordInspection'].includes(kind)) {
    if(!Array.isArray(input.lines)||input.lines.length<1||input.lines.length>200)throw new InputError("Use between 1 and 200 document lines.")
    const mr=["createMaterialRequest","editMaterialRequest","createAdditionalMaterialRequest"].includes(kind)
@@ -95,6 +103,6 @@ export function createProcurementCommandRepository(client:SupabaseClient):Procur
 export async function executeProcurementCommandHandler(request:CallableRequest<unknown>,deps:{accessLookup:AccessLookup;repository:ProcurementCommandRepository}) {
  const access=await requireAccess(request,"inventory",["administrator","inventory_staff"],deps.accessLookup)
  const raw=request.data
- if(raw&&typeof raw==="object"&&!Array.isArray(raw)&&["reassignPendingReviewer","reconcileHistoricalReceipt"].includes((raw as Record<string,unknown>).kind as string)&&access.roleKey!=="administrator")throw new HttpsError("permission-denied","Administrator access is required.")
+ if(raw&&typeof raw==="object"&&!Array.isArray(raw)&&["reassignPendingReviewer","reconcileHistoricalReceipt","saveSupplier","saveWarehouse","saveStorageLocation","configureItemTracking"].includes((raw as Record<string,unknown>).kind as string)&&access.roleKey!=="administrator")throw new HttpsError("permission-denied","Administrator access is required.")
  return deps.repository.execute(access.tenantId,access.userId,normalizeProcurementCommand(raw))
 }
