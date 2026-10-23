@@ -28,4 +28,43 @@ assert.equal(module.canChangeRequester?.("Administrator"), true)
 assert.equal(module.canChangeRequester?.("Inventory Staff"), false)
 assert.equal(module.canPrint?.("Viewer"), true)
 
+const expectedCapabilities = {
+  Administrator: [
+    "inventory.read", "inventory.update", "workflow.read", "workflow.mutate",
+    "stock.post", "requester.change", "reports.read", "documents.print",
+    "settings.read", "users.manage",
+  ],
+  "Inventory Staff": [
+    "inventory.read", "inventory.update", "workflow.read", "workflow.mutate",
+    "stock.post", "reports.read", "documents.print", "settings.read",
+  ],
+  Viewer: [
+    "inventory.read", "workflow.read", "reports.read", "documents.print",
+    "settings.read",
+  ],
+}
+
+for (const [role, capabilities] of Object.entries(expectedCapabilities)) {
+  assert.deepEqual(module.capabilitiesFor?.(role), capabilities)
+  for (const capability of capabilities) assert.equal(module.hasCapability?.(role, capability), true)
+}
+assert.equal(module.hasCapability?.("Viewer", "inventory.update"), false)
+assert.equal(module.hasCapability?.("Viewer", "workflow.mutate"), false)
+assert.equal(module.hasCapability?.("Inventory Staff", "requester.change"), false)
+assert.equal(module.hasCapability?.("Inventory Staff", "users.manage"), false)
+assert.equal(module.isReadOnlyRole?.("Viewer"), true)
+assert.equal(module.isReadOnlyRole?.("Inventory Staff"), false)
+assert.equal(module.isReadOnlyRole?.("Administrator"), false)
+
+for (const page of [
+  "dashboard", "inventory", "requests", "purchase-requests", "procurement",
+  "inspection", "stock-in", "stock-out", "charges", "reconciliation",
+  "transactions", "trail", "reports", "settings",
+]) {
+  assert.equal(module.canAccessPage?.("Viewer", page), true, `Viewer should read ${page}`)
+}
+assert.equal(module.canAccessPage?.("Administrator", "user-access"), true)
+assert.equal(module.canAccessPage?.("Inventory Staff", "user-access"), false)
+assert.equal(module.canAccessPage?.("Viewer", "user-access"), false)
+
 console.log("Access control checks passed.")

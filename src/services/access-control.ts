@@ -3,6 +3,80 @@ export const APP_ROLES = ["Administrator", "Inventory Staff", "Viewer"] as const
 export type AppRole = (typeof APP_ROLES)[number]
 export type AccessState = "loading" | "active" | "inactive" | "error"
 
+export const APP_CAPABILITIES = [
+  "inventory.read",
+  "inventory.update",
+  "workflow.read",
+  "workflow.mutate",
+  "stock.post",
+  "requester.change",
+  "reports.read",
+  "documents.print",
+  "settings.read",
+  "users.manage",
+] as const
+
+export type AppCapability = (typeof APP_CAPABILITIES)[number]
+
+export const APP_PAGES = [
+  "dashboard",
+  "inventory",
+  "stock-in",
+  "stock-out",
+  "transactions",
+  "trail",
+  "reports",
+  "requests",
+  "purchase-requests",
+  "procurement",
+  "inspection",
+  "charges",
+  "reconciliation",
+  "settings",
+  "user-access",
+] as const
+
+export type AppPage = (typeof APP_PAGES)[number]
+
+const ROLE_CAPABILITIES: Readonly<Record<AppRole, readonly AppCapability[]>> = Object.freeze({
+  Administrator: Object.freeze([...APP_CAPABILITIES]),
+  "Inventory Staff": Object.freeze([
+    "inventory.read",
+    "inventory.update",
+    "workflow.read",
+    "workflow.mutate",
+    "stock.post",
+    "reports.read",
+    "documents.print",
+    "settings.read",
+  ]),
+  Viewer: Object.freeze([
+    "inventory.read",
+    "workflow.read",
+    "reports.read",
+    "documents.print",
+    "settings.read",
+  ]),
+})
+
+const PAGE_CAPABILITY: Readonly<Record<AppPage, AppCapability>> = Object.freeze({
+  dashboard: "inventory.read",
+  inventory: "inventory.read",
+  "stock-in": "workflow.read",
+  "stock-out": "workflow.read",
+  transactions: "workflow.read",
+  trail: "workflow.read",
+  reports: "reports.read",
+  requests: "workflow.read",
+  "purchase-requests": "workflow.read",
+  procurement: "workflow.read",
+  inspection: "workflow.read",
+  charges: "workflow.read",
+  reconciliation: "workflow.read",
+  settings: "settings.read",
+  "user-access": "users.manage",
+})
+
 export interface AppUser {
   firebaseUid: string
   email: string
@@ -25,7 +99,18 @@ export const toAppRole = (roleKey: unknown): AppRole | null => {
   return null
 }
 
-export const canManageUsers = (role: AppRole): boolean => role === "Administrator"
-export const canMutateWorkflow = (role: AppRole): boolean => role !== "Viewer"
-export const canChangeRequester = (role: AppRole): boolean => role === "Administrator"
-export const canPrint = (_role: AppRole): boolean => true
+export const capabilitiesFor = (role: AppRole): AppCapability[] => [...ROLE_CAPABILITIES[role]]
+
+export const hasCapability = (role: AppRole, capability: AppCapability): boolean =>
+  ROLE_CAPABILITIES[role].includes(capability)
+
+export const canAccessPage = (role: AppRole, page: AppPage): boolean =>
+  hasCapability(role, PAGE_CAPABILITY[page])
+
+export const isReadOnlyRole = (role: AppRole): boolean =>
+  !hasCapability(role, "inventory.update") && !hasCapability(role, "workflow.mutate")
+
+export const canManageUsers = (role: AppRole): boolean => hasCapability(role, "users.manage")
+export const canMutateWorkflow = (role: AppRole): boolean => hasCapability(role, "workflow.mutate")
+export const canChangeRequester = (role: AppRole): boolean => hasCapability(role, "requester.change")
+export const canPrint = (role: AppRole): boolean => hasCapability(role, "documents.print")
