@@ -51,6 +51,7 @@ test("Viewer Dashboard is tenant-scoped and another tenant has independent count
 test("selectors paginate with scoped cursors and never expose another tenant's items",async()=>{
   const first=await rpc('inv_get_procurement_reference_data',{kind:'items',limit:100})
   assert.equal(first.items.length,100);assert.ok(first.nextCursor)
+  assert.ok(Object.hasOwn(first.items[0].metadata,'trackingVersion'))
   const second=await rpc('inv_get_procurement_reference_data',{kind:'items',limit:100,cursor:first.nextCursor})
   assert.equal(second.items.length,3);assert.equal(second.nextCursor,null)
   assert.ok([...first.items,...second.items].every(row=>row.id!==foreignItem))

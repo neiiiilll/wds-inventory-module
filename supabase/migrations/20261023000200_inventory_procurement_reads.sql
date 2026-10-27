@@ -100,7 +100,7 @@ begin
  if coalesce(p_input->>'kind','') not in ('items','suppliers','locations','requesters','reviewers','warehouses') then raise exception using errcode='22023',message='Invalid selector.'; end if;
  page_limit:=public.inv_read_limit(p_input); scope:=public.inv_read_scope(p_tenant_id,p_actor_user_id,'references',p_input); position:=public.inv_decode_page(scope,p_input->>'cursor');
  with refs as (
-   select i.id,i.item_code||' · '||i.name as label,jsonb_build_object('itemCode',i.item_code,'name',i.name,'unitId',i.unit_id,'unitName',u.name,'unitSymbol',u.symbol,'quantityPrecision',u.quantity_precision,'version',i.version,'costMethod',i.cost_method,'trackingMode',tr.mode,'trackingVersion',tr.version,'quantity',(select coalesce(sum(b.quantity),0)::text from public.inv_inventory_balances b where b.tenant_id=p_tenant_id and b.item_id=i.id)) as metadata
+   select i.id,i.item_code||' · '||i.name as label,jsonb_build_object('itemCode',i.item_code,'name',i.name,'unitId',i.unit_id,'unitName',u.name,'unitSymbol',u.symbol,'quantityPrecision',u.quantity_precision,'version',i.version,'costMethod',i.cost_method,'trackingMode',tr.mode,'quantity',(select coalesce(sum(b.quantity),0)::text from public.inv_inventory_balances b where b.tenant_id=p_tenant_id and b.item_id=i.id)) as metadata
    from public.inv_inventory_items i join public.inv_units u on u.tenant_id=p_tenant_id and u.id=i.unit_id left join public.inv_item_tracking tr on tr.tenant_id=p_tenant_id and tr.item_id=i.id
    where p_input->>'kind'='items' and i.tenant_id=p_tenant_id and i.active and u.active
    union all select s.id,s.name,jsonb_build_object('code',s.supplier_code,'version',s.version) from public.inv_suppliers s where p_input->>'kind'='suppliers' and s.tenant_id=p_tenant_id and s.active

@@ -1,7 +1,7 @@
 import {useCallback} from 'react'
 import {getInventoryDashboard} from '../../services/procurement-api'
 import {useLiveInventoryResource} from '../../services/use-live-inventory'
-const decimal=(value:string)=>new Intl.NumberFormat('en-PH',{maximumFractionDigits:6}).format(Number(value))
+import {formatDecimal as decimal} from '../../services/format-decimal'
 export default function LiveDashboard({onNavigate}:{onNavigate:(page:'inventory'|'transactions'|'stock-in'|'requests')=>void}){
  const loader=useCallback(()=>getInventoryDashboard(),[]),resource=useLiveInventoryResource('dashboard',loader)
  if(resource.loading)return <section className="panel"><div className="empty"><strong>Loading live inventory…</strong></div></section>

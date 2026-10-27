@@ -2,17 +2,20 @@ import {useMemo,useState,type FormEvent} from 'react'
 import type {CommandKind,DocumentDetail} from '../../services/procurement-api'
 import {createCommandSubmission,executeProcurementCommand} from '../../services/procurement-api'
 import LiveReferenceSelect from './LiveReferenceSelect'
-import ReceivingForm from './ReceivingForm'
+import ReceivingForm from './ReceivingWorkflowForm'
+import HistoricalReconciliationForm from './HistoricalReconciliationForm'
 
 const today=()=>new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Manila'})
 const field=(document:DocumentDetail,key:string)=>{const value=document.fields[key];return typeof value==='string'?value:''}
 export default function ProcurementActionForm({action,document,onCancel,onSaved}:{action:CommandKind;document:DocumentDetail;onCancel:()=>void;onSaved:()=>void}){
  if(action==='recordDelivery'||action==='recordInspection')return <ReceivingForm action={action} document={document} onCancel={onCancel} onSaved={onSaved}/>
+ if(action==='reconcileHistoricalReceipt')return <HistoricalReconciliationForm document={document} onCancel={onCancel} onSaved={onSaved}/>
  return <GeneralActionForm action={action} document={document} onCancel={onCancel} onSaved={onSaved}/>
 }
 function GeneralActionForm({action,document,onCancel,onSaved}:{action:CommandKind;document:DocumentDetail;onCancel:()=>void;onSaved:()=>void}){
+ const existingPrint=document.fields.print_fields&&typeof document.fields.print_fields==='object'&&!Array.isArray(document.fields.print_fields)?document.fields.print_fields as Record<string,unknown>:{}
  const initialReviewers=()=>[0,1,2,3].map(index=>typeof document.reviewSteps[index]?.reviewerId==='string'?document.reviewSteps[index].reviewerId as string:'')
- const [reference,setReference]=useState(''),[date,setDate]=useState(today),[reason,setReason]=useState(''),[method,setMethod]=useState('Email'),[recipient,setRecipient]=useState(''),[supplierId,setSupplier]=useState(''),[reviewerId,setReviewerId]=useState(''),[lineId,setLineId]=useState(document.lines[0]?.id??''),[quantity,setQuantity]=useState('1'),[evidence,setEvidence]=useState(''),[organizationName,setOrganizationName]=useState(''),[organizationAddress,setOrganizationAddress]=useState(''),[printNote,setPrintNote]=useState(''),[selectionReason,setSelectionReason]=useState(field(document,'selection_reason')),[reviewers,setReviewers]=useState(initialReviewers),[prices,setPrices]=useState(()=>document.lines.map(()=>'0.00')),[decision,setDecision]=useState('approved'),[saving,setSaving]=useState(false),[error,setError]=useState('')
+ const [reference,setReference]=useState(''),[date,setDate]=useState(today),[reason,setReason]=useState(''),[method,setMethod]=useState('Email'),[recipient,setRecipient]=useState(''),[supplierId,setSupplier]=useState(''),[reviewerId,setReviewerId]=useState(''),[lineId,setLineId]=useState(document.lines[0]?.id??''),[quantity,setQuantity]=useState('1'),[evidence,setEvidence]=useState(''),[organizationName,setOrganizationName]=useState(String(existingPrint.organizationName??'')),[organizationAddress,setOrganizationAddress]=useState(String(existingPrint.organizationAddress??'')),[printNote,setPrintNote]=useState(String(existingPrint.note??'')),[selectionReason,setSelectionReason]=useState(field(document,'selection_reason')),[reviewers,setReviewers]=useState(initialReviewers),[prices,setPrices]=useState(()=>document.lines.map(()=>'0.00')),[decision,setDecision]=useState('approved'),[saving,setSaving]=useState(false),[error,setError]=useState('')
  const pendingStage=useMemo(()=>{const step=document.reviewSteps.find(item=>item.decision===null||item.decision===undefined);return Number(step?.stageOrder??1)},[document.reviewSteps])
  const buildInput=():Record<string,unknown>=>{
   if(action==='approveMaterialRequest')return {reference}

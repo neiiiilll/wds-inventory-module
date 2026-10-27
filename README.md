@@ -27,7 +27,7 @@ Automatic role assignment is disabled. A trusted administrator supplies `app_use
 
 Apps Core is the sole tenant and Inventory role authority. Inventory does not set, remove or depend on Firebase tenant claims. Administrator and Inventory Staff can perform allowed operational changes; Viewer can read but cannot mutate. Browser tenant, actor, and role values are rejected.
 
-The callable supports five logical operations: `provisionInventoryAccess`, `listInventoryItems`, `updateInventoryItem`, `createMaterialRequest`, and `postStockMovement`. See [functions/README.md](functions/README.md) for each input, output, table, RPC, secret and access check.
+The callable supports catalog operations plus live Dashboard/procurement reads, typed procurement commands, and private attachment transfer through one allowlisted gateway. See [functions/README.md](functions/README.md) for every input, output, table, RPC, secret and access check.
 
 ## Deployment
 
@@ -35,6 +35,8 @@ Function before Hosting: verify and deploy the single callable first, then the R
 
 ```sh
 npm run test:functions
+npm run test:database
+npm run verify:inventory-release
 npm run deploy:functions
 firebase functions:list --project apps-workspace-b61a9
 npm run deploy:hosting
@@ -58,4 +60,8 @@ See [supabase/README.md](supabase/README.md) for migration order, `supabase db r
 
 ## Current UI scope
 
-Inventory List and account access verification use the live API. Other procurement workflow screens still save prototype data in browser local storage. This transport change does not make those screens live or migrate their data.
+Dashboard, Inventory List, Transactions, Stock In, Material Requests, Quotations, Purchase Requests, Purchase Orders, Inspection & Acceptance, procurement setup, print views and private attachments use the live Firebase callable and existing Supabase records. They never fall back to browser demo state. Stock Out/RIS, Material Charges, Returns & Reconciliation, Stock Trail and Reports remain explicitly labelled browser-demo areas until their own live backend scope is approved.
+
+## Database release gate
+
+The seven additive Inventory procurement migrations are `20261023000100` through `20261023000700`. Apply only those reviewed files to Apps Core using an authorized PostgreSQL migration connection, then run `npm run verify:inventory-release` with `INVENTORY_DATABASE_URL` set for a read-only installed-schema probe. The script prints SHA-256 hashes and refuses unexpected Inventory procurement files, Service Desk references, or shared-table DDL. If SQL authority is unavailable, stop before Functions/Hosting deployment and give the exact scripts and hashes to the Apps Core owner; never substitute the Supabase service-role API key.

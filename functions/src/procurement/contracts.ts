@@ -11,12 +11,14 @@ export interface DocumentSummary {
 export interface DocumentLine {
   id: string; itemId: string | null; lineNo: number; quantity: Decimal; unitPrice: Decimal | null
   specification: string | null; snapshot: Record<string, unknown> | null
+  materialRequestLineId?: string | null; quotationLineId?: string | null; purchaseRequestLineId?: string | null; orderLineId?: string | null
   [key: string]: unknown
 }
 export interface DocumentDetail extends DocumentSummary {
   fields: Record<string, unknown>; lines: DocumentLine[]; history: Array<Record<string, unknown>>
   reviewSteps: Array<Record<string, unknown>>; attachments: Array<Record<string, unknown>>
   related: Array<{ id: string; kind: DocumentKind; reference: string }>
+  linesNextCursor: string | null; historyNextCursor: string | null; relatedNextCursor: string | null
 }
 export interface MovementDto {
   id: string; movementId: string; itemId: string; itemCode: string; itemName: string; locationId: string

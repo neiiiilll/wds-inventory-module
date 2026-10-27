@@ -1,6 +1,6 @@
 # Inventory Firebase callable
 
-One Firebase v2 callable named `inventory` connects Firebase-authenticated React users to Apps Core Supabase Postgres. Node.js 22; region `asia-southeast1`; maximum five instances; timeout 60 seconds. The five operations below are dispatched inside this single endpoint, not exported as five Cloud Functions.
+One Firebase v2 callable named `inventory` connects Firebase-authenticated React users to Apps Core Supabase Postgres. Node.js 22; region `asia-southeast1`; maximum five instances; timeout 60 seconds. All operations below are dispatched inside this single endpoint; they are not separate Cloud Functions.
 
 ## Secret
 
@@ -72,6 +72,26 @@ Checks: Administrator or Inventory Staff; server-derived actor and tenant; tenan
 RPC: `inv_post_stock_movement`, which writes Inventory movements, lines, balances, versions, counters and audit objects atomically.
 Secret: `INVENTORY_BACKEND`.
 
+### getInventoryDashboard
+
+Purpose: return full-tenant item, balance, critical-stock, recent-movement, and procurement aggregates without deriving totals from a capped browser page. Input: `{}`. Output: `DashboardDto`. Checks: authenticated active Inventory membership; all three Inventory roles may read. Tables/RPC: tenant-scoped `inv_*` data through `inv_get_inventory_dashboard`. Secret: `INVENTORY_BACKEND`.
+
+### listProcurementDocuments / getProcurementDocument
+
+Purpose: return bounded pages of material requests, quotations, purchase requests, purchase orders and inspections, then a bounded document graph containing immutable lines, audit history, reviewer route, related records and finalized attachments. Inputs: validated kind, cursor, limit/search/status or kind/id/section. Outputs: opaque-cursor pages and `DocumentDetail`. Checks: current database tenant and Inventory role on every request; Viewer actions are empty. RPCs: `inv_list_procurement_documents`, `inv_get_procurement_document`. Secret: `INVENTORY_BACKEND`.
+
+### getProcurementReferenceData / listInventoryMovements
+
+Purpose: provide tenant-scoped paginated selectors and the posted stock ledger used by live forms and reports. Inputs: bounded selector kind/search/cursor, or movement filters/dates/cursor. Outputs: reference or movement pages. Checks: authenticated tenant read access and cursor scope; movement dates use the application’s Manila calendar. RPCs: `inv_get_procurement_reference_data`, `inv_list_inventory_movements`. Secret: `INVENTORY_BACKEND`.
+
+### executeProcurementCommand
+
+Purpose: execute one typed, idempotent Inventory workflow transaction. Commands cover MR revision/additional/approval, quotation, priced PR with four-stage review/reassignment, PO/dispatch, delivery/inspection/acceptance/receipt/returns, explicit historical reconciliation, supplier/warehouse/location/tracking setup, and print display fields. Input: `kind`, command-specific `input`, idempotency key and, for updates, document ID plus expected version. Output: authoritative ID, kind, version, replay flag, invalidations, reference/status. Checks: tenant and actor are server-derived; Viewer is denied before payload validation; setup, reassignment and reconciliation require Administrator; optimistic version and database lifecycle rules apply. RPC: `inv_execute_procurement_command`. Secret: `INVENTORY_BACKEND`.
+
+### createProcurementAttachmentUpload / finalizeProcurementAttachment / getProcurementAttachmentDownload
+
+Purpose: reserve a random tenant/document path, issue a two-hour non-overwriting signed upload, verify the uploaded PDF/PNG/JPEG (maximum 5 MiB) by metadata, bytes and checksum, and issue a five-minute private download. Inputs: document identity and bounded file metadata, or attachment ID. Outputs: signed transfer data or finalized state. Checks: writers are Administrator/Inventory Staff; Viewer may download a ready file only after current document access is rechecked; bucket `inventory-documents` must already exist and remain private. Tables/RPCs: `inv_procurement_attachments` and attachment RPCs; Supabase Storage only for the dedicated bucket. Secret: `INVENTORY_BACKEND`.
+
 ## React example
 
 ```ts
@@ -97,7 +117,7 @@ firebase deploy --project apps-workspace-b61a9 --only functions:inventory:invent
 firebase functions:list --project apps-workspace-b61a9
 ```
 
-This exact selector deploys only `inventory` in codebase `inventory`. Confirm it is ready and rejects anonymous calls before deploying Hosting. Never deploy or delete `serviceDesk` as part of Inventory work. Keep the Supabase Edge deployment for the acceptance rollback window.
+Before deployment, apply exactly the reviewed `20261023000100` through `20261023000700` Inventory procurement migrations with an authorized PostgreSQL connection and run `npm run verify:inventory-release`. A Supabase service-role API key cannot apply SQL migrations. This exact selector deploys only `inventory` in codebase `inventory`. Confirm it is ready and rejects anonymous calls before deploying Hosting. Never deploy or delete `serviceDesk` as part of Inventory work. Keep the Supabase Edge deployment for the acceptance rollback window.
 
 ## If the callable is blocked by Cloud Run IAM
 

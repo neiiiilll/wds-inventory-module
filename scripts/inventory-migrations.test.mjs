@@ -18,6 +18,15 @@ const canonicalNames = [
 ]
 const procurementNames = migrationNames.filter(name => /^20261023\d+_inventory_procurement_[a-z_]+\.sql$/.test(name))
 assert.deepEqual(migrationNames, [...canonicalNames, ...procurementNames])
+assert.deepEqual(procurementNames, [
+  "20261023000100_inventory_procurement_foundation.sql",
+  "20261023000200_inventory_procurement_reads.sql",
+  "20261023000300_inventory_procurement_documents.sql",
+  "20261023000400_inventory_procurement_receiving.sql",
+  "20261023000500_inventory_procurement_setup.sql",
+  "20261023000600_inventory_procurement_attachments.sql",
+  "20261023000700_inventory_procurement_ui.sql",
+])
 
 const [legacySchema, legacyAccess, prerequisites, catalog, workflows, integrity, rpcs, legacyCompatibility] = await Promise.all(
   canonicalNames.map((name) => readFile(new URL(name, migrationsUrl), "utf8")),
@@ -193,5 +202,17 @@ assert.match(legacyCompatibility, /table_name\s*=\s*'app_users'/i)
 assert.match(legacyCompatibility, /column_name\s*=\s*'role'/i)
 assert.match(legacyCompatibility, /alter table public\.app_users alter column role set default 'Viewer'/i)
 assert.doesNotMatch(legacyCompatibility, /\bsvc_[a-z0-9_]+\b/i)
+
+const [procurementReads, procurementUi] = await Promise.all([
+  readFile(new URL(procurementNames[1], migrationsUrl), "utf8"),
+  readFile(new URL(procurementNames[6], migrationsUrl), "utf8"),
+])
+assert.doesNotMatch(procurementReads, /trackingVersion/)
+assert.match(procurementUi, /create or replace function public\.inv_get_procurement_reference_data/i)
+assert.match(procurementUi, /'trackingVersion',tr\.version/i)
+assert.doesNotMatch(procurementUi, /\bsvc_[a-z0-9_]+\b|serviceDesk|SERVICE_DESK_BACKEND/i)
+const releaseCheck = await readFile(new URL("inventory-release-check.mjs", import.meta.url), "utf8")
+assert.match(releaseCheck, /pg_get_functiondef/)
+assert.match(releaseCheck, /trackingVersion/)
 
 console.log("Canonical inventory migrations and RPC contracts passed.")

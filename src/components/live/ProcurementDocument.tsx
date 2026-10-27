@@ -1,6 +1,6 @@
 import {useCallback,useMemo,useState} from 'react'
 import type {CommandKind,DocumentKind,DocumentSummary} from '../../services/procurement-api'
-import {getProcurementDocument} from '../../services/procurement-api'
+import {getCompleteProcurementDocument} from '../../services/procurement-api'
 import {useLiveInventoryResource} from '../../services/use-live-inventory'
 import ProcurementActionForm from './ProcurementActionForm'
 import MaterialRequestForm from './MaterialRequestForm'
@@ -13,7 +13,7 @@ type Attachment={id:string;name:string;contentType:string;size:number}
 const attachments=(value:Array<Record<string,unknown>>):Attachment[]=>value.filter((item):item is Record<string,unknown>&{id:string;name:string;contentType:string;size:number}=>typeof item.id==='string'&&typeof item.name==='string'&&typeof item.contentType==='string'&&typeof item.size==='number').map(item=>({id:item.id,name:item.name,contentType:item.contentType,size:item.size}))
 
 export default function ProcurementDocument({summary,canMutate,isAdmin,onClose,onChanged}:{summary:DocumentSummary;canMutate:boolean;isAdmin:boolean;onClose:()=>void;onChanged:()=>void}){
- const loader=useCallback(()=>getProcurementDocument({kind:summary.kind,id:summary.id,limit:100}),[summary.kind,summary.id]),resource=useLiveInventoryResource(`procurement:${summary.kind}:${summary.id}`,loader),[action,setAction]=useState<CommandKind|null>(null)
+ const loader=useCallback(()=>getCompleteProcurementDocument({kind:summary.kind,id:summary.id}),[summary.kind,summary.id]),resource=useLiveInventoryResource(`procurement:${summary.kind}:${summary.id}`,loader),[action,setAction]=useState<CommandKind|null>(null)
  const actions=useMemo(()=>{if(!resource.data||!canMutate)return[];const values=resource.data.historical?[]:[...resource.data.availableActions] as CommandKind[];if(!resource.data.historical&&resource.data.kind==='material_request'&&resource.data.status==='approved')values.push('createQuotation');if(!resource.data.historical&&resource.data.kind==='quotation')values.push('createPurchaseRequest');if(!resource.data.historical&&resource.data.kind==='inspection'&&['accepted','partially_returned'].includes(resource.data.status))values.push('recordSupplierReturn');if(isAdmin&&!resource.data.historical)values.push('saveDocumentPrintFields');if(isAdmin&&resource.data.kind==='purchase_request'&&resource.data.status==='submitted')values.push('reassignPendingReviewer');if(isAdmin&&resource.data.kind==='inspection'&&resource.data.historical)values.push('reconcileHistoricalReceipt');return [...new Set(values)].filter(value=>SUPPORTED.has(value))},[resource.data,canMutate,isAdmin])
  const changed=()=>{setAction(null);resource.reload();onChanged()}
  return <div className="modal-backdrop" role="dialog" aria-modal="true"><div className="modal modal-wide workflow-modal"><div className="modal-head"><div><h2>{summary.reference}</h2><p>Live tenant-scoped document</p></div><button className="icon-button" aria-label="Close" onClick={onClose}>×</button></div><div className="modal-body">

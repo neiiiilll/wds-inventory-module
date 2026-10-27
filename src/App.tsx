@@ -634,7 +634,7 @@ export default function App() {
     return <main className="login-page"><div className="login-loading">Checking your session…</div></main>
   }
   if (!session) return <LoginPage />
-  return <AccessGate session={session}>{(appUser) => <InventoryApp session={session} appUser={appUser} />}</AccessGate>
+  return <AccessGate key={session.uid} session={session}>{(appUser) => <InventoryApp key={session.uid} session={session} appUser={appUser} />}</AccessGate>
 }
 
 function PageHeader({
